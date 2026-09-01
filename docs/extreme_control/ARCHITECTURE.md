@@ -31,4 +31,3 @@ Sensors -> EKF2 -> Existing PX4 controllers -> torque/thrust setpoint
 ## 版本适配
 
 本机 v1.14 已提供 `actuator_motors`、`vehicle_angular_velocity.xyz_derivative`、`vehicle_acceleration`、`control_allocator_status`、rotor effectiveness matrix、pseudo-inverse 和 sequential desaturation。FTC 使用这些真实接口，不复制 PX4 main 的新版本实现。
-

@@ -46,4 +46,3 @@
 - `boards/px4/fmu-v6c/init/rc.board_defaults` 的 GNSS/4G/MAVLink 产品默认值。
 
 FTC 代码只能追加独立配置，不得重写上述硬件识别或通信默认值。
-

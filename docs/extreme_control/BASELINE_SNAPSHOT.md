@@ -35,4 +35,3 @@ git switch backup/px4-v1.14-current-20260831
 ```
 
 原始提交同时仍由审计时的 `main`、`origin/main` 和上述两个本地恢复锚点引用。本项目不要求用 reset、clean 或覆盖工作树来恢复。
-
