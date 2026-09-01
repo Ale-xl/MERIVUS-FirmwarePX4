@@ -67,7 +67,13 @@ void LoggedTopics::add_default_topics()
 	add_optional_topic("follow_target_status", 400);
 	add_optional_topic("flaps_setpoint", 1000);
 	add_optional_topic("ftc_allocation_shadow", 20);
+	add_optional_topic("ftc_control_authority", 20);
+	add_optional_topic("ftc_effectiveness_matrix", 1000);
+	add_optional_topic("ftc_extreme_state", 20);
+	add_optional_topic("ftc_model_status", 20);
+	add_optional_topic("ftc_recovery_status", 20);
 	add_optional_topic("ftc_simulation_status", 20);
+	add_optional_topic("ftc_system_status", 100);
 	add_topic("gimbal_manager_set_attitude", 500);
 	add_optional_topic("generator_status");
 	add_optional_topic("gps_dump");

@@ -59,6 +59,7 @@ bool FtcControlMonitor::updateMatrix()
 	}
 
 	_matrix = matrix;
+	_normalization_initialized = false;
 	_matrix_valid = matrix.valid && matrix.matrix_index == 0 && matrix.num_axes == ControlAllocation::NUM_AXES
 			&& matrix.num_actuators > 0 && matrix.num_actuators <= ControlAllocation::NUM_ACTUATORS;
 
@@ -132,7 +133,17 @@ void FtcControlMonitor::calculateShadow(hrt_abstime now)
 
 	_allocator.setActuatorMin(minimum);
 	_allocator.setActuatorMax(maximum);
-	_allocator.setEffectivenessMatrix(_dynamic_matrix, trim, linearization_point, _matrix.num_actuators, true);
+	_allocator.setNormalizeRPY(_matrix.normalize_rpy);
+
+	if (!_normalization_initialized) {
+		ControlVector zero_control{};
+		_allocator.setEffectivenessMatrix(_nominal_matrix, trim, linearization_point, _matrix.num_actuators, true);
+		_allocator.setControlSetpoint(zero_control);
+		_allocator.allocate();
+		_normalization_initialized = true;
+	}
+
+	_allocator.setEffectivenessMatrix(_dynamic_matrix, trim, linearization_point, _matrix.num_actuators, false);
 	_allocator.setActuatorSetpoint(current);
 	ControlVector control_sp{};
 
@@ -198,8 +209,11 @@ void FtcControlMonitor::calculateShadow(hrt_abstime now)
 	} else if (authority.minimum_attitude_authority < 0.1f) {
 		authority.state = ftc_control_authority_s::UNCONTROLLABLE;
 
-	} else if (authority.minimum_attitude_authority < _param_ftc_ca_att_min.get()) {
+	} else if (authority.minimum_attitude_authority < _param_ftc_ca_att_min.get() * 0.5f) {
 		authority.state = ftc_control_authority_s::ATTITUDE_DEGRADED;
+
+	} else if (authority.minimum_attitude_authority < _param_ftc_ca_att_min.get()) {
+		authority.state = ftc_control_authority_s::RECOVERY_ONLY;
 
 	} else if (authority.yaw_authority < _param_ftc_ca_yaw_min.get()) {
 		authority.state = ftc_control_authority_s::YAW_UNCONTROLLABLE;
@@ -258,6 +272,10 @@ int FtcControlMonitor::print_status()
 	PX4_INFO("shadow: %s, takeover interface: %s, matrix: %s, authority state: %u",
 		 _param_ftc_ca_shadow.get() ? "enabled" : "disabled", _param_ftc_ca_en.get() ? "requested/inactive" : "disabled",
 		 _matrix_valid ? "valid" : "invalid", (unsigned)_last_authority.state);
+	PX4_INFO("authority R/P/Y/T %.2f/%.2f/%.2f/%.2f, headroom %.2f, saturation 0x%04x",
+		 (double)_last_authority.roll_authority, (double)_last_authority.pitch_authority,
+		 (double)_last_authority.yaw_authority, (double)_last_authority.thrust_authority,
+		 (double)_last_authority.actuator_headroom, (unsigned)_last_authority.saturated_mask);
 	return 0;
 }
 

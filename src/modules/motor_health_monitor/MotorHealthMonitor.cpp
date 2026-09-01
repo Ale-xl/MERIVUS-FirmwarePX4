@@ -173,11 +173,16 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 	if (localized_faults == 0 && status.external_disturbance_score >= _param_ftc_fault_ext.get()) {
 		for (uint8_t i = 0; i < status.motor_count; ++i) {
 			status.fault_type[i] = motor_health_status_s::FAULT_EXTERNAL_DISTURBANCE;
+			status.fault_probability[i] = status.external_disturbance_score;
+			status.fault_confidence[i] = math::constrain(1.f - status.maneuver_intensity, 0.f, 1.f);
 		}
 
 	} else if (localized_faults == 0 && status.model_residual > _param_ftc_res_thr.get() && status.excitation > 0.5f) {
 		for (uint8_t i = 0; i < status.motor_count; ++i) {
 			status.fault_type[i] = motor_health_status_s::FAULT_MODEL_MISMATCH;
+			status.fault_probability[i] = math::constrain(status.model_residual
+						      / fmaxf(_param_ftc_res_thr.get(), 0.01f), 0.f, 1.f);
+			status.fault_confidence[i] = status.excitation;
 		}
 	}
 }
@@ -251,11 +256,12 @@ void MotorHealthMonitor::Run()
 	_esc_status_sub.update(&_esc_status);
 	const bool armed = _vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED;
 
-	if (!armed && _was_armed) {
+	if ((!armed && _was_armed) || (_land_detected.landed && !_was_landed)) {
 		resetEstimator();
 	}
 
 	_was_armed = armed;
+	_was_landed = _land_detected.landed;
 
 	if (!_param_ftc_mon_en.get()) {
 		if (_was_enabled) {
@@ -420,9 +426,11 @@ int MotorHealthMonitor::print_status()
 		 (unsigned)_last_status.degraded_mask, (unsigned)_last_status.failed_mask);
 
 	for (uint8_t i = 0; i < _last_status.motor_count; ++i) {
-		PX4_INFO("motor %u: effectiveness %.3f, confidence %.3f, residual %.3f", (unsigned)i,
+		PX4_INFO("motor %u: effectiveness %.3f, confidence %.3f, residual %.3f, fault %u p=%.2f t=%.1f s",
+			 (unsigned)i,
 			 (double)_last_status.effectiveness[i], (double)_last_status.confidence[i],
-			 (double)_last_status.residual[i]);
+			 (double)_last_status.residual[i], (unsigned)_last_status.fault_type[i],
+			 (double)_last_status.fault_probability[i], (double)_last_status.fault_persistence[i]);
 	}
 
 	perf_print_counter(_cycle_perf);

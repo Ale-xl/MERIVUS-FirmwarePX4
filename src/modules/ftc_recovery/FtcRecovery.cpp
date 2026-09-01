@@ -22,6 +22,8 @@ constexpr uint32_t INHIBIT_LANDED = 1u << 1;
 constexpr uint32_t INHIBIT_LOW_ALTITUDE = 1u << 2;
 constexpr uint32_t INHIBIT_STALE_STATE = 1u << 3;
 constexpr uint32_t INHIBIT_UNCONTROLLABLE = 1u << 4;
+constexpr uint32_t INHIBIT_VEHICLE_TYPE = 1u << 5;
+constexpr uint32_t INHIBIT_AUTHORITY = 1u << 6;
 }
 
 FtcRecovery::FtcRecovery() :
@@ -73,12 +75,12 @@ void FtcRecovery::transition(uint8_t state, hrt_abstime now)
 
 void FtcRecovery::calculateLevelQuaternion(const float q[4], float q_d[4]) const
 {
-	const float yaw = atan2f(2.f * (q[0] * q[3] + q[1] * q[2]),
-				  1.f - 2.f * (q[2] * q[2] + q[3] * q[3]));
-	q_d[0] = cosf(0.5f * yaw);
+	// Project the current attitude quaternion onto the yaw-only subspace. This remains bounded for large roll/pitch.
+	const float yaw_norm = sqrtf(q[0] * q[0] + q[3] * q[3]);
+	q_d[0] = yaw_norm > 0.01f ? q[0] / yaw_norm : 1.f;
 	q_d[1] = 0.f;
 	q_d[2] = 0.f;
-	q_d[3] = sinf(0.5f * yaw);
+	q_d[3] = yaw_norm > 0.01f ? q[3] / yaw_norm : 0.f;
 }
 
 void FtcRecovery::generateCandidate(const vehicle_attitude_s &attitude,
@@ -163,6 +165,10 @@ void FtcRecovery::Run()
 		status.inhibit_reason_mask |= INHIBIT_NOT_ARMED;
 	}
 
+	if (vehicle_status.vehicle_type != vehicle_status_s::VEHICLE_TYPE_ROTARY_WING) {
+		status.inhibit_reason_mask |= INHIBIT_VEHICLE_TYPE;
+	}
+
 	if (land.landed) {
 		status.inhibit_reason_mask |= INHIBIT_LANDED;
 	}
@@ -177,6 +183,11 @@ void FtcRecovery::Run()
 
 	if (authority.valid && authority.state == ftc_control_authority_s::UNCONTROLLABLE) {
 		status.inhibit_reason_mask |= INHIBIT_UNCONTROLLABLE;
+	}
+
+	if (!authority.valid || authority.state == ftc_control_authority_s::ATTITUDE_DEGRADED
+	    || authority.state == ftc_control_authority_s::THRUST_INSUFFICIENT) {
+		status.inhibit_reason_mask |= INHIBIT_AUTHORITY;
 	}
 
 	status.eligible = status.inhibit_reason_mask == 0;
@@ -207,8 +218,11 @@ void FtcRecovery::Run()
 		transition(ftc_recovery_status_s::DISTURBANCE_DETECTED, now);
 
 	} else if (_state == ftc_recovery_status_s::DISTURBANCE_DETECTED) {
-		if (extreme.loc_state == ftc_extreme_state_s::LOC_UNRECOVERABLE
-		    || authority.state == ftc_control_authority_s::THRUST_INSUFFICIENT) {
+		if (authority.state == ftc_control_authority_s::UNCONTROLLABLE) {
+			transition(ftc_recovery_status_s::FAILED, now);
+
+		} else if (extreme.loc_state == ftc_extreme_state_s::LOC_UNRECOVERABLE
+			   || authority.state == ftc_control_authority_s::THRUST_INSUFFICIENT) {
 			transition(ftc_recovery_status_s::EMERGENCY_LAND, now);
 
 		} else if (status.eligible) {
@@ -238,6 +252,7 @@ void FtcRecovery::Run()
 	status.active = _state >= ftc_recovery_status_s::RATE_DAMPING
 			&& _state <= ftc_recovery_status_s::EMERGENCY_LAND;
 	status.progress = status.active ? math::constrain((now - _state_entered) * 1e-6f, 0.f, 1.f) : 0.f;
+	status.state_elapsed = _state_entered == 0 ? 0.f : (now - _state_entered) * 1e-6f;
 	generateCandidate(attitude, angular_velocity, rates_sp, status);
 	_last_status = status;
 	_status_pub.publish(status);
@@ -245,9 +260,12 @@ void FtcRecovery::Run()
 
 int FtcRecovery::print_status()
 {
-	PX4_INFO("state: %u, eligible: %s, candidate: %s, intervention: disconnected%s",
-		 (unsigned)_last_status.state, _last_status.eligible ? "yes" : "no",
-		 _last_status.candidate_valid ? "valid" : "invalid", _param_ftc_rec_act.get() ? " (requested)" : "");
+	PX4_INFO("state: %u (%.2f s), eligible: %s, trigger: 0x%08lx, inhibit: 0x%08lx",
+		 (unsigned)_last_status.state, (double)_last_status.state_elapsed, _last_status.eligible ? "yes" : "no",
+		 (unsigned long)_last_status.trigger_mask,
+		 (unsigned long)_last_status.inhibit_reason_mask);
+	PX4_INFO("candidate: %s, intervention: disconnected%s", _last_status.candidate_valid ? "valid" : "invalid",
+		 _param_ftc_rec_act.get() ? " (requested)" : "");
 	return 0;
 }
 

@@ -133,68 +133,224 @@ PARAM_DEFINE_FLOAT(FTC_FAIL_T, 1.0f);
  */
 PARAM_DEFINE_INT32(FTC_CA_SHADOW, 0);
 
-/** Estimator forgetting factor @min 0.90 @max 1.0 @decimal 3 @group Fault Tolerant Control */
+/**
+ * Estimator forgetting factor
+ *
+ * @min 0.90
+ * @max 1.0
+ * @decimal 3
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_EST_FORG, 0.995f);
 
-/** Lower bound for estimated motor effectiveness @min 0.05 @max 0.8 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Lower bound for estimated motor effectiveness
+ *
+ * @min 0.05
+ * @max 0.8
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_EST_LMIN, 0.10f);
 
-/** Nominal roll inertia approximation @unit kg m^2 @min 0.0001 @max 100 @decimal 4 @group Fault Tolerant Control */
+/**
+ * Nominal roll inertia approximation
+ *
+ * @unit kg m^2
+ * @min 0.0001
+ * @max 100
+ * @decimal 4
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_EST_IXX, 0.02f);
 
-/** Nominal pitch inertia approximation @unit kg m^2 @min 0.0001 @max 100 @decimal 4 @group Fault Tolerant Control */
+/**
+ * Nominal pitch inertia approximation
+ *
+ * @unit kg m^2
+ * @min 0.0001
+ * @max 100
+ * @decimal 4
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_EST_IYY, 0.02f);
 
-/** Nominal yaw inertia approximation @unit kg m^2 @min 0.0001 @max 100 @decimal 4 @group Fault Tolerant Control */
+/**
+ * Nominal yaw inertia approximation
+ *
+ * @unit kg m^2
+ * @min 0.0001
+ * @max 100
+ * @decimal 4
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_EST_IZZ, 0.04f);
 
-/** Fault probability threshold @min 0.1 @max 1.0 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Fault probability threshold
+ *
+ * @min 0.1
+ * @max 1.0
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_FAULT_P, 0.65f);
 
-/** Mechanical imbalance vibration threshold @unit m/s^2 @min 0.1 @max 100 @decimal 1 @group Fault Tolerant Control */
+/**
+ * Mechanical imbalance vibration threshold
+ *
+ * @unit m/s^2
+ * @min 0.1
+ * @max 100
+ * @decimal 1
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_FAULT_VIB, 8.0f);
 
-/** External disturbance score threshold @min 0.1 @max 1.0 @decimal 2 @group Fault Tolerant Control */
+/**
+ * External disturbance score threshold
+ *
+ * @min 0.1
+ * @max 1.0
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_FAULT_EXT, 0.70f);
 
-/** Enable future control allocator takeover. Reserved and inactive in this implementation. @boolean @group Fault Tolerant Control */
+/**
+ * Enable future control allocator takeover
+ *
+ * Reserved and inactive in this implementation.
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_INT32(FTC_CA_EN, 0);
 
-/** Minimum normalized attitude authority @min 0.05 @max 1.0 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Minimum normalized attitude authority
+ *
+ * @min 0.05
+ * @max 1.0
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_CA_ATT_MIN, 0.35f);
 
-/** Minimum normalized yaw authority @min 0.0 @max 1.0 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Minimum normalized yaw authority
+ *
+ * @min 0.0
+ * @max 1.0
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_CA_YAW_MIN, 0.20f);
 
-/** Minimum normalized thrust authority @min 0.05 @max 1.0 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Minimum normalized thrust authority
+ *
+ * @min 0.05
+ * @max 1.0
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_CA_THR_MIN, 0.25f);
 
-/** Enable impact and hard-landing observation @boolean @group Fault Tolerant Control */
+/**
+ * Enable impact and hard-landing observation
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_INT32(FTC_IMPACT_EN, 0);
 
-/** Impact acceleration threshold @unit m/s^2 @min 5 @max 200 @decimal 1 @group Fault Tolerant Control */
+/**
+ * Impact acceleration threshold
+ *
+ * @unit m/s^2
+ * @min 5
+ * @max 200
+ * @decimal 1
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_IMPACT_ACC, 30.0f);
 
-/** Impact jerk threshold @unit m/s^3 @min 10 @max 1000 @decimal 1 @group Fault Tolerant Control */
+/**
+ * Impact jerk threshold
+ *
+ * @unit m/s^3
+ * @min 10
+ * @max 1000
+ * @decimal 1
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_IMPACT_JRK, 120.0f);
 
-/** Enable loss-of-control observation @boolean @group Fault Tolerant Control */
+/**
+ * Enable loss-of-control observation
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_INT32(FTC_LOC_EN, 0);
 
-/** Loss-of-control score threshold @min 0.1 @max 1.0 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Loss-of-control score threshold
+ *
+ * @min 0.1
+ * @max 1.0
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_LOC_THR, 0.70f);
 
-/** Enable recovery state machine and candidate generation @boolean @group Fault Tolerant Control */
+/**
+ * Enable recovery state machine and candidate generation
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_INT32(FTC_REC_EN, 0);
 
-/** Enable connection of recovery candidates to the flight-control pipeline. Reserved and inactive. @boolean @group Fault Tolerant Control */
+/**
+ * Enable connection of recovery candidates to the flight-control pipeline
+ *
+ * Reserved and inactive in this implementation.
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_INT32(FTC_REC_ACT, 0);
 
-/** Recovery maximum commanded body rate @unit rad/s @min 0.1 @max 10 @decimal 1 @group Fault Tolerant Control */
+/**
+ * Recovery maximum commanded body rate
+ *
+ * @unit rad/s
+ * @min 0.1
+ * @max 10
+ * @decimal 1
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_REC_RATE, 2.0f);
 
-/** Recovery rate damping gain @min 0.05 @max 5 @decimal 2 @group Fault Tolerant Control */
+/**
+ * Recovery rate damping gain
+ *
+ * @min 0.05
+ * @max 5
+ * @decimal 2
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_REC_KD, 0.8f);
 
-/** Recovery minimum altitude above ground estimate @unit m @min 0 @max 100 @decimal 1 @group Fault Tolerant Control */
+/**
+ * Recovery minimum altitude above ground estimate
+ *
+ * @unit m
+ * @min 0
+ * @max 100
+ * @decimal 1
+ * @group Fault Tolerant Control
+ */
 PARAM_DEFINE_FLOAT(FTC_REC_ALT, 3.0f);

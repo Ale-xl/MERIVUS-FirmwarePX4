@@ -64,6 +64,7 @@ private:
 	matrix::Matrix<float, ControlAllocation::NUM_AXES, ControlAllocation::NUM_ACTUATORS> _dynamic_matrix{};
 	ftc_control_authority_s _last_authority{};
 	bool _matrix_valid{false};
+	bool _normalization_initialized{false};
 
 	DEFINE_PARAMETERS(
 		(ParamBool<px4::params::FTC_CA_SHADOW>) _param_ftc_ca_shadow,

@@ -21,6 +21,7 @@ bool candidate_valid
 uint32 trigger_mask
 uint32 inhibit_reason_mask
 float32 progress
+float32 state_elapsed
 
 float32[3] body_rate_setpoint
 float32[3] thrust_body

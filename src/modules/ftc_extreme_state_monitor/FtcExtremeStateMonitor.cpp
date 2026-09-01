@@ -90,6 +90,7 @@ void FtcExtremeStateMonitor::Run()
 	vehicle_local_position_s local_position{};
 	vehicle_land_detected_s land{};
 	vehicle_status_s vehicle_status{};
+	actuator_motors_s motors{};
 	control_allocator_status_s allocator_status{};
 	ftc_control_authority_s authority{};
 	motor_health_status_s health{};
@@ -101,12 +102,14 @@ void FtcExtremeStateMonitor::Run()
 	_local_position_sub.copy(&local_position);
 	_land_sub.copy(&land);
 	_vehicle_status_sub.copy(&vehicle_status);
+	_motors_sub.copy(&motors);
 	_allocator_status_sub.copy(&allocator_status);
 	_authority_sub.copy(&authority);
 	_health_sub.copy(&health);
 
 	ftc_extreme_state_s status{};
 	status.timestamp = now;
+	status.event_timestamp = _last_impact;
 	status.loc_state = ftc_extreme_state_s::LOC_NORMAL;
 	status.impact_type = ftc_extreme_state_s::IMPACT_NONE;
 	status.valid = acceleration_updated && angular_velocity_updated && acceleration.timestamp != 0
@@ -153,8 +156,8 @@ void FtcExtremeStateMonitor::Run()
 	status.jerk = sqrtf(jerk_norm_sq);
 	status.angular_rate = sqrtf(angular_rate_norm_sq);
 	status.angular_acceleration = sqrtf(angular_acceleration_norm_sq);
-	status.rate_error = sqrtf(rate_error_norm_sq);
-	status.attitude_error = quaternionError(attitude.q, attitude_sp.q_d);
+	status.rate_error = rates_sp.timestamp != 0 ? sqrtf(rate_error_norm_sq) : 0.f;
+	status.attitude_error = attitude_sp.timestamp != 0 ? quaternionError(attitude.q, attitude_sp.q_d) : 0.f;
 	const float attitude_jump = quaternionError(attitude.q, _previous_q);
 	memcpy(_previous_q, attitude.q, sizeof(_previous_q));
 	float velocity_jump = 0.f;
@@ -204,6 +207,12 @@ void FtcExtremeStateMonitor::Run()
 	if (_param_ftc_loc_en.get() && status.valid) {
 		float score = 0.f;
 
+		if (vehicle_status.arming_state != vehicle_status_s::ARMING_STATE_ARMED || land.landed) {
+			_last_status = status;
+			_status_pub.publish(status);
+			return;
+		}
+
 		if (status.attitude_error > 0.6f) {
 			status.loss_of_control_reason_mask |= REASON_ATTITUDE_ERROR;
 			score += 0.25f;
@@ -217,6 +226,14 @@ void FtcExtremeStateMonitor::Run()
 		if (!allocator_status.torque_setpoint_achieved || !allocator_status.thrust_setpoint_achieved) {
 			status.loss_of_control_reason_mask |= REASON_SATURATION;
 			score += 0.15f;
+		}
+
+		for (uint8_t i = 0; i < actuator_motors_s::NUM_CONTROLS; ++i) {
+			if (PX4_ISFINITE(motors.control[i]) && motors.control[i] > 0.98f) {
+				status.loss_of_control_reason_mask |= REASON_SATURATION;
+				score = fmaxf(score, 0.15f);
+				break;
+			}
 		}
 
 		if (authority.valid && authority.state >= ftc_control_authority_s::ATTITUDE_DEGRADED) {

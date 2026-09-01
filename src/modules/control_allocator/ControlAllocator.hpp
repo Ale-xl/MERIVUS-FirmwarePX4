@@ -138,7 +138,7 @@ private:
 	void publish_ftc_effectiveness_matrix(int matrix_index,
 			const ActuatorEffectiveness::EffectivenessMatrix &effectiveness,
 			const ActuatorVector &trim, const ActuatorVector &linearization_point,
-			const ActuatorVector &minimum, const ActuatorVector &maximum, int num_actuators);
+			const ActuatorVector &minimum, const ActuatorVector &maximum, int num_actuators, bool normalize_rpy);
 
 	void publish_actuator_controls();
 

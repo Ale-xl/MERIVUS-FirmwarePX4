@@ -77,6 +77,7 @@ private:
 	hrt_abstime _last_run{0};
 	hrt_abstime _last_disabled_publish{0};
 	bool _was_armed{false};
+	bool _was_landed{true};
 	bool _was_enabled{false};
 
 	perf_counter_t _cycle_perf{perf_alloc(PC_ELAPSED, MODULE_NAME ": cycle")};

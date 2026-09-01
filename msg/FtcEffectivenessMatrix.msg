@@ -6,6 +6,7 @@ uint8 num_axes
 uint8 num_actuators
 uint8 num_motors
 bool valid
+bool normalize_rpy
 
 uint8 NUM_AXES = 6
 uint8 NUM_ACTUATORS = 16

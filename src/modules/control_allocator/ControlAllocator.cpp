@@ -171,6 +171,9 @@ ControlAllocator::update_allocation_method(bool force)
 		bool normalize_rpy[ActuatorEffectiveness::MAX_NUM_MATRICES];
 		_actuator_effectiveness->getNormalizeRPY(normalize_rpy);
 
+		bool normalize_rpy[ActuatorEffectiveness::MAX_NUM_MATRICES] {};
+		_actuator_effectiveness->getNormalizeRPY(normalize_rpy);
+
 		for (int i = 0; i < _num_control_allocation; ++i) {
 			AllocationMethod method = configured_method;
 
@@ -578,7 +581,8 @@ ControlAllocator::update_effectiveness_matrix_if_needed(EffectivenessUpdateReaso
 
 			if (_param_ftc_ca_shadow.get()) {
 				publish_ftc_effectiveness_matrix(i, config.effectiveness_matrices[i], config.trim[i],
-						config.linearization_point[i], minimum[i], maximum[i], total_num_actuators);
+						config.linearization_point[i], minimum[i], maximum[i], total_num_actuators,
+						normalize_rpy[i]);
 			}
 		}
 
@@ -591,7 +595,7 @@ void
 ControlAllocator::publish_ftc_effectiveness_matrix(int matrix_index,
 		const ActuatorEffectiveness::EffectivenessMatrix &effectiveness,
 		const ActuatorVector &trim, const ActuatorVector &linearization_point,
-		const ActuatorVector &minimum, const ActuatorVector &maximum, int num_actuators)
+		const ActuatorVector &minimum, const ActuatorVector &maximum, int num_actuators, bool normalize_rpy)
 {
 	if (matrix_index < 0 || matrix_index >= ActuatorEffectiveness::MAX_NUM_MATRICES) {
 		return;
@@ -605,6 +609,7 @@ ControlAllocator::publish_ftc_effectiveness_matrix(int matrix_index,
 	snapshot.num_motors = static_cast<uint8_t>(_num_actuators[(int)ActuatorType::MOTORS] < snapshot.num_actuators
 			      ? _num_actuators[(int)ActuatorType::MOTORS] : snapshot.num_actuators);
 	snapshot.valid = snapshot.num_actuators > 0;
+	snapshot.normalize_rpy = normalize_rpy;
 
 	for (int actuator = 0; actuator < snapshot.num_actuators; ++actuator) {
 		snapshot.trim[actuator] = trim(actuator);

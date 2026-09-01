@@ -150,6 +150,10 @@ int FtcSupervisor::print_status()
 		 (unsigned)_last_status.state, (double)_last_status.system_confidence,
 		 (unsigned)_last_status.degraded_motor_mask, (unsigned)_last_status.failed_motor_mask,
 		 _param_ftc_rec_act.get() ? " (requested)" : "");
+	PX4_INFO("reason mask: 0x%08lx, model: %s, authority: %s, recovery eligible: %s",
+		 (unsigned long)_last_status.reason_mask, _last_status.model_valid ? "valid" : "invalid",
+		 _last_status.control_authority_valid ? "valid" : "invalid",
+		 _last_status.recovery_eligible ? "yes" : "no");
 	return 0;
 }
 
