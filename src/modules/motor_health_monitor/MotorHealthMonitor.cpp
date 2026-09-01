@@ -191,7 +191,11 @@ void MotorHealthMonitor::Run()
 	const bool input_fresh = motors_available && angular_velocity_available
 				 && now >= actuator_motors.timestamp && now - actuator_motors.timestamp < 200_ms
 				 && now >= angular_velocity.timestamp && now - angular_velocity.timestamp < 200_ms;
-	const bool flight_valid = armed && !_land_detected.landed && input_fresh && motor_count >= 2
+	const bool flight_state_fresh = _vehicle_status.timestamp != 0
+					&& now >= _vehicle_status.timestamp && now - _vehicle_status.timestamp < 1_s
+					&& _land_detected.timestamp != 0
+					&& now >= _land_detected.timestamp && now - _land_detected.timestamp < 1_s;
+	const bool flight_valid = armed && flight_state_fresh && !_land_detected.landed && input_fresh && motor_count >= 2
 				  && mean_motor_command >= _param_ftc_min_thr.get();
 	const float dt = _last_run == 0 ? 0.02f : math::constrain((now - _last_run) * 1e-6f, 0.001f, 0.1f);
 	_last_run = now;
