@@ -1,6 +1,6 @@
 # MERIVUS 文档门户
 
-本目录是 FirmwarePX4 产品文档的统一入口。PX4 上游通用资料继续位于 `Documentation/`；MERIVUS 的当前架构、产品合同、实验状态和开发规则以本页链接为准。
+这里是 FirmwarePX4 产品文档的统一入口。PX4 上游通用资料仍放在 `Documentation/`；MERIVUS 当前的架构、产品合同、实验状态和开发规则从本页进入。
 
 ## 1. Project Overview
 

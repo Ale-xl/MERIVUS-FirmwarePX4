@@ -8,7 +8,7 @@
 | Ubuntu 22.04 / 已有 PX4 v1.14 工具链的 Ubuntu VM | 初始化子模块、运行 PX4/NuttX 构建、SITL |
 | Git 远端 | 在环境间同步不可变提交；不能用整目录覆盖代替版本控制 |
 
-不要在普通 Git Bash 中假设存在完整的 PX4 NuttX/ARM 工具链，也不建议在 VMware 共享目录中直接构建。
+普通 Git Bash 不带完整的 PX4 NuttX/ARM 工具链。VMware 共享目录适合传文件，不适合直接构建。
 
 ## 首次准备
 
@@ -82,7 +82,7 @@ sha256sum build/px4_fmu-v6c_default/px4_fmu-v6c_default.{px4,elf}
 
 ## 复制和刷写
 
-固件可以通过 VMware 共享目录或 SCP 传回 Windows；复制前后必须复核 SHA-256。Windows 使用：
+固件可以通过 VMware 共享目录或 SCP 传回 Windows。复制前后都要复核 SHA-256。Windows 使用：
 
 ```powershell
 Get-FileHash -Algorithm SHA256 E:\MERIVUS\FirmwareOutput\px4_fmu-v6c_default.px4

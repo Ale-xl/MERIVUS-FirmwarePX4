@@ -16,7 +16,7 @@ node .gitnexus\run.cjs impact "symbolName" --direction upstream --repo .
 node .gitnexus\run.cjs detect-changes --scope all --repo .
 ```
 
-`.gitnexus/run.cjs` 是本地缓存的一部分；新 clone 首次使用时先执行 analyze。本轮实测 npm 11 的 `npx @latest --help` 可能尝试联网，MCP 查询不依赖该重复下载。
+`.gitnexus/run.cjs` 属于本地缓存。新 clone 第一次使用前要先执行 analyze。本轮实测发现，npm 11 运行 `npx @latest --help` 时可能再次尝试联网；已经加载的 MCP 查询不需要这次重复下载。
 
 ## 关键修改面
 

@@ -2,7 +2,7 @@
 
 ## 范围与证据
 
-本图以 `E:\MERIVUS\FirmwarePX4` 为主仓库，GroundStation 与 HardwareFMUv6C 只作为相邻系统边界。证据来自当前源码、板级配置、uORB 声明、启动脚本、Git 历史和提交 `294b2c60fc8f64007a84553bbf3c8106d9ef5dc9` 的 GitNexus 索引。GitNexus 已建立 830,568 个符号节点、1,033,775 条关系和 942 条流程；PX4 调度器、uORB 和串口属于运行时边界，因此图关系同时用源码交叉核验。
+本图以 `E:\MERIVUS\FirmwarePX4` 为主仓库，GroundStation 与 HardwareFMUv6C 作为相邻系统边界。判断依据包括当前源码、板级配置、uORB 声明、启动脚本、Git 历史，以及提交 `294b2c60fc8f64007a84553bbf3c8106d9ef5dc9` 的 GitNexus 索引。该索引包含 830,568 个符号节点、1,033,775 条关系和 942 条流程。PX4 调度器、uORB 和串口属于运行时边界，所以相关连接还要与源码互相印证。
 
 ```text
 MERIVUS

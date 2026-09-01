@@ -2,7 +2,7 @@
 
 ## 当前结论
 
-FTC 已形成完整的诊断数据合同和断开的恢复候选链，但没有主动控制接管。现有 PX4 EKF2、姿态、角速度、位置、Commander 和 flight mode manager 保持原路径；唯一进入 `control_allocator` 的 FTC hook 是受 `FTC_CA_SHADOW` 控制的名义矩阵只读发布。
+FTC 已经形成诊断数据合同和一条断开的恢复候选链，目前没有主动接管控制。PX4 原有的 EKF2、姿态、角速度、位置、Commander 和 flight mode manager 仍走原来的路径。FTC 在 `control_allocator` 中只有一个 hook：受 `FTC_CA_SHADOW` 控制，负责只读发布名义矩阵。
 
 | 层级 | 已实现内容 | 当前行为 | 状态 |
 | --- | --- | --- | --- |
