@@ -602,6 +602,8 @@ ControlAllocator::publish_ftc_effectiveness_matrix(int matrix_index,
 	snapshot.matrix_index = static_cast<uint8_t>(matrix_index);
 	snapshot.num_axes = NUM_AXES;
 	snapshot.num_actuators = static_cast<uint8_t>(num_actuators < NUM_ACTUATORS ? num_actuators : NUM_ACTUATORS);
+	snapshot.num_motors = static_cast<uint8_t>(_num_actuators[(int)ActuatorType::MOTORS] < snapshot.num_actuators
+			      ? _num_actuators[(int)ActuatorType::MOTORS] : snapshot.num_actuators);
 	snapshot.valid = snapshot.num_actuators > 0;
 
 	for (int actuator = 0; actuator < snapshot.num_actuators; ++actuator) {

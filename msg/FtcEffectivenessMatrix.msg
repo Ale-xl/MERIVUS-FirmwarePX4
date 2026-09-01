@@ -4,6 +4,7 @@ uint64 timestamp
 uint8 matrix_index
 uint8 num_axes
 uint8 num_actuators
+uint8 num_motors
 bool valid
 
 uint8 NUM_AXES = 6
