@@ -88,6 +88,8 @@ set(msg_files
 	FollowTarget.msg
 	FollowTargetEstimator.msg
 	FollowTargetStatus.msg
+	FtcAllocationShadow.msg
+	FtcSimulationStatus.msg
 	GeneratorStatus.msg
 	GeofenceResult.msg
 	GimbalDeviceAttitudeStatus.msg
@@ -125,6 +127,7 @@ set(msg_files
 	MavlinkTunnel.msg
 	Mission.msg
 	MissionResult.msg
+	MotorHealthStatus.msg
 	MountOrientation.msg
 	ModeCompleted.msg
 	NavigatorMissionItem.msg
