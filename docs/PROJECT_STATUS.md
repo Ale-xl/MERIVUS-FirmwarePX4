@@ -26,4 +26,5 @@
 | `ftc_supervisor` | `IMPLEMENTED_UNVERIFIED` | 聚合五类 topic、顶层状态 | L2/L4/ULog |
 | SITL fault injection | `IMPLEMENTED_UNVERIFIED` | simulator hook、5 参数、状态 topic | L2/L4 |
 | FTC ULog integration | `IMPLEMENTED_UNVERIFIED` | 9 个 optional topic 已入 logger 源码 | 实际 ULog 出现、时间对齐和带宽 |
+| FTC MAVLink telemetry | `IMPLEMENTED_UNVERIFIED` | 版本 1 方言、4 条标准调度流、两仓契约检查 | SITL 编译/频率、FMUv6C 编译、TELEM1 台架和 GroundStation 联调 |
 | GitNexus 工程知识图 | `HOST_VERIFIED` | 当前 HEAD 完整索引，无 incomplete reason | 代码变更后需刷新；子模块噪声待优化 |

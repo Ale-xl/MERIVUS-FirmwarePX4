@@ -120,3 +120,24 @@ UAV-1 GPS_RAW_INT -> GroundStation
 ```
 
 `swarm_node` 由 `ROMFS/px4fmu_common/init.d/rc.mc_apps` 启动。FOLLOW_TARGET 超过 3 秒、来源/会话不匹配或位置无效会触发退出到 Hold/Loiter；Hold/Loiter 不等于自动降落。
+
+## Flow 7：FTC 状态到 GroundStation
+
+```text
+motor_health_status + ftc_model_status + ftc_system_status
+  ~> MERIVUS_FTC_MOTOR_STATUS @ 5 Hz
+
+ftc_control_authority + ftc_effectiveness_matrix
+  + ftc_allocation_shadow + ftc_recovery_status + ftc_system_status
+  ~> MERIVUS_FTC_CONTROL_STATUS @ 5 Hz
+
+ftc_extreme_state + ftc_recovery_status
+  ~> MERIVUS_FTC_EXTREME_STATUS @ 10 Hz
+
+motor/model/shadow/extreme/system + ftc_simulation_status
+  ~> MERIVUS_FTC_DIAGNOSTICS @ 1 Hz
+
+PX4 MAVLink scheduler ~> serial/UDP/TCP ~> GroundStation VehicleFtcStatusFactGroup
+```
+
+这条链是只读传输。它没有反向命令，不连接 Commander、setpoint 或 `actuator_motors`。详细字段、带宽和模式边界见 [FTC 遥测传输](FTC_TELEMETRY_TRANSPORT.md)。

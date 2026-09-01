@@ -31,6 +31,7 @@
 
 - [RTK 与 4G 配置合同](../Documentation/merivus/RTK_AND_4G_CONFIGURATION.md)
 - [构建与 CI 产物合同](../Documentation/merivus/CI_CONTRACT.md)
+- [FTC MAVLink 遥测传输](architecture/FTC_TELEMETRY_TRANSPORT.md)
 
 ## 6. GNSS / RTK
 
@@ -46,6 +47,7 @@
 ## 8. FTC / Extreme Control
 
 - [FTC 系统级架构与接管边界](architecture/FTC_ARCHITECTURE.md)
+- [FTC MAVLink 遥测传输](architecture/FTC_TELEMETRY_TRANSPORT.md)
 - [FTC 专项文档索引](extreme_control/README.md)
 - [FTC 参数](reference/PARAMETER_INDEX.md#ftc-参数)
 - [FTC uORB](reference/UORB_INDEX.md#ftc-消息)
