@@ -10,6 +10,7 @@ px4_add_module(
 	COMPILE_FLAGS
 		${MAX_CUSTOM_OPT_LEVEL}
 	SRCS
+		EffectivenessEstimator.hpp
 		MotorEffectivenessEstimator.cpp
 		MotorEffectivenessEstimator.hpp
 		MotorHealthMonitor.cpp

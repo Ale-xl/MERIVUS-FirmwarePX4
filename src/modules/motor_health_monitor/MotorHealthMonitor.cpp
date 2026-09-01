@@ -59,6 +59,8 @@ void MotorHealthMonitor::resetEstimator()
 	_estimator.reset();
 	memset(_degraded_start, 0, sizeof(_degraded_start));
 	memset(_failed_start, 0, sizeof(_failed_start));
+	memset(_fault_probability_lpf, 0, sizeof(_fault_probability_lpf));
+	memset(_effectiveness_change_lpf, 0, sizeof(_effectiveness_change_lpf));
 	memset(&_last_status, 0, sizeof(_last_status));
 
 	for (uint8_t i = 0; i < MotorEffectivenessEstimator::MAX_MOTORS; ++i) {
@@ -66,7 +68,11 @@ void MotorHealthMonitor::resetEstimator()
 		_last_status.health[i] = NAN;
 		_last_status.confidence[i] = 0.f;
 		_last_status.residual[i] = NAN;
+		_previous_effectiveness[i] = 1.f;
 	}
+
+	_filtered_acceleration_magnitude = 0.f;
+	_acceleration_filter_initialized = false;
 }
 
 uint8_t MotorHealthMonitor::motorCount(const actuator_motors_s &actuator_motors) const
@@ -97,39 +103,130 @@ void MotorHealthMonitor::publishDisabled(hrt_abstime now)
 	_last_disabled_publish = now;
 }
 
-void MotorHealthMonitor::publishShadow(const actuator_motors_s &actuator_motors,
-		const motor_health_status_s &health_status)
+void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s &actuator_motors,
+		motor_health_status_s &status, float dt)
 {
-	ftc_allocation_shadow_s shadow{};
-	shadow.timestamp = hrt_absolute_time();
-	shadow.timestamp_sample = actuator_motors.timestamp_sample;
-	shadow.motor_count = health_status.motor_count;
-	shadow.valid = health_status.model_valid;
-	float maximum_magnitude = 1.f;
+	const float probability_alpha = math::constrain(dt / (0.4f + dt), 0.f, 1.f);
+	const bool esc_available = status.esc_data_available;
+	uint8_t localized_faults = 0;
 
-	for (uint8_t i = 0; i < ftc_allocation_shadow_s::NUM_MOTORS; ++i) {
-		shadow.nominal[i] = NAN;
-		shadow.candidate[i] = NAN;
-		shadow.effectiveness[i] = NAN;
-	}
+	for (uint8_t i = 0; i < status.motor_count; ++i) {
+		const float degradation = status.model_valid ? 1.f - status.effectiveness[i] : 0.f;
+		const float change_rate = fabsf(status.effectiveness[i] - _previous_effectiveness[i]) / fmaxf(dt, 0.001f);
+		_effectiveness_change_lpf[i] += probability_alpha * (change_rate - _effectiveness_change_lpf[i]);
+		_previous_effectiveness[i] = status.effectiveness[i];
 
-	for (uint8_t i = 0; i < shadow.motor_count; ++i) {
-		shadow.nominal[i] = actuator_motors.control[i];
-		shadow.effectiveness[i] = health_status.effectiveness[i];
-		const float bounded_effectiveness = fmaxf(health_status.effectiveness[i], 0.25f);
-		shadow.candidate[i] = actuator_motors.control[i] / bounded_effectiveness;
-		maximum_magnitude = fmaxf(maximum_magnitude, fabsf(shadow.candidate[i]));
+		bool esc_online = true;
+		bool esc_failed = false;
+		bool motor_stuck = false;
+		bool rpm_stopped = false;
 
-		if (fabsf(shadow.candidate[i]) > 1.f) {
-			shadow.saturated_mask |= 1u << i;
+		if (esc_available && i < _esc_status.esc_count) {
+			esc_online = (_esc_status.esc_online_flags & (1u << i)) != 0;
+			const uint16_t failures = _esc_status.esc[i].failures;
+			motor_stuck = (failures & (1u << esc_report_s::FAILURE_MOTOR_STUCK)) != 0;
+			esc_failed = failures != 0 && !motor_stuck;
+			rpm_stopped = actuator_motors.control[i] > 0.25f && _esc_status.esc[i].esc_rpm >= 0
+				      && _esc_status.esc[i].esc_rpm < 100;
+		}
+
+		float evidence = degradation * status.confidence[i];
+		evidence = fmaxf(evidence, (!esc_online || esc_failed || motor_stuck || rpm_stopped) ? 1.f : 0.f);
+		_fault_probability_lpf[i] += probability_alpha * (evidence - _fault_probability_lpf[i]);
+		status.fault_probability[i] = math::constrain(_fault_probability_lpf[i], 0.f, 1.f);
+		status.fault_confidence[i] = esc_available
+					     ? fmaxf(status.confidence[i], (!esc_online || esc_failed || motor_stuck) ? 1.f : 0.f)
+					     : status.confidence[i] * 0.8f;
+		status.fault_persistence[i] = _degraded_start[i] == 0 ? 0.f : (now - _degraded_start[i]) * 1e-6f;
+		status.fault_type[i] = motor_health_status_s::FAULT_NONE;
+
+		if (status.fault_probability[i] < _param_ftc_fault_p.get()) {
+			if (status.vibration_score > 1.f && degradation < 0.1f) {
+				status.fault_type[i] = motor_health_status_s::FAULT_MECHANICAL_IMBALANCE;
+			}
+
+			continue;
+		}
+
+		++localized_faults;
+
+		if (!esc_online || esc_failed) {
+			status.fault_type[i] = motor_health_status_s::FAULT_ESC_OR_POWER_FAILURE;
+
+		} else if (motor_stuck || rpm_stopped) {
+			status.fault_type[i] = motor_health_status_s::FAULT_MOTOR_STOP;
+
+		} else if (_effectiveness_change_lpf[i] > 0.25f && status.fault_persistence[i] > 1.f) {
+			status.fault_type[i] = motor_health_status_s::FAULT_INTERMITTENT_PROPULSION_FAILURE;
+
+		} else if (status.vibration_score > 1.f && degradation > 0.15f && status.fault_confidence[i] > 0.6f) {
+			status.fault_type[i] = motor_health_status_s::FAULT_PROP_DAMAGE;
+
+		} else if (status.model_valid && status.fault_confidence[i] > 0.75f) {
+			status.fault_type[i] = motor_health_status_s::FAULT_MOTOR_DEGRADATION;
+
+		} else {
+			status.fault_type[i] = motor_health_status_s::FAULT_UNKNOWN_PROPULSION_DEGRADATION;
 		}
 	}
 
-	for (uint8_t i = 0; i < shadow.motor_count; ++i) {
-		shadow.candidate[i] = math::constrain(shadow.candidate[i] / maximum_magnitude, -1.f, 1.f);
+	if (localized_faults == 0 && status.external_disturbance_score >= _param_ftc_fault_ext.get()) {
+		for (uint8_t i = 0; i < status.motor_count; ++i) {
+			status.fault_type[i] = motor_health_status_s::FAULT_EXTERNAL_DISTURBANCE;
+		}
+
+	} else if (localized_faults == 0 && status.model_residual > _param_ftc_res_thr.get() && status.excitation > 0.5f) {
+		for (uint8_t i = 0; i < status.motor_count; ++i) {
+			status.fault_type[i] = motor_health_status_s::FAULT_MODEL_MISMATCH;
+		}
+	}
+}
+
+void MotorHealthMonitor::publishModelStatus(hrt_abstime now,
+		const vehicle_angular_velocity_s &angular_velocity, const motor_health_status_s &health_status)
+{
+	ftc_model_status_s model{};
+	model.timestamp = now;
+	model.timestamp_sample = angular_velocity.timestamp_sample;
+	model.estimator_type = 1; // bounded RLS
+	model.motor_count = health_status.motor_count;
+	model.effectiveness_valid = health_status.model_valid;
+	model.valid = health_status.model_valid;
+	model.excitation = health_status.excitation;
+	model.model_quality = health_status.model_valid
+			      ? math::constrain((1.f - math::constrain(health_status.model_residual, 0.f, 1.f))
+						* health_status.excitation, 0.f, 1.f) : 0.f;
+	model.mass = NAN;
+	model.mass_valid = false;
+	model.inertia[0] = _param_ftc_est_ixx.get();
+	model.inertia[1] = _param_ftc_est_iyy.get();
+	model.inertia[2] = _param_ftc_est_izz.get();
+	model.inertia_valid = false;
+	model.cg_offset[0] = model.cg_offset[1] = model.cg_offset[2] = NAN;
+	model.cg_valid = false;
+
+	const float i_omega[3] {model.inertia[0] * angular_velocity.xyz[0],
+				model.inertia[1] * angular_velocity.xyz[1], model.inertia[2] * angular_velocity.xyz[2]};
+	const float gyroscopic[3] {
+		angular_velocity.xyz[1] * i_omega[2] - angular_velocity.xyz[2] * i_omega[1],
+		angular_velocity.xyz[2] * i_omega[0] - angular_velocity.xyz[0] * i_omega[2],
+		angular_velocity.xyz[0] * i_omega[1] - angular_velocity.xyz[1] * i_omega[0]
+	};
+	float rotational_norm_sq = 0.f;
+
+	for (uint8_t axis = 0; axis < 3; ++axis) {
+		const float torque = model.inertia[axis] * angular_velocity.xyz_derivative[axis] + gyroscopic[axis];
+		rotational_norm_sq += torque * torque;
 	}
 
-	_allocation_shadow_pub.publish(shadow);
+	model.rotational_residual = sqrtf(rotational_norm_sq);
+
+	for (uint8_t i = 0; i < ftc_model_status_s::NUM_MOTORS; ++i) {
+		model.motor_effectiveness[i] = health_status.effectiveness[i];
+		model.motor_confidence[i] = health_status.confidence[i];
+	}
+
+	_model_status_pub.publish(model);
 }
 
 void MotorHealthMonitor::Run()
@@ -175,8 +272,10 @@ void MotorHealthMonitor::Run()
 
 	actuator_motors_s actuator_motors{};
 	vehicle_angular_velocity_s angular_velocity{};
+	vehicle_acceleration_s acceleration{};
 	const bool motors_available = _actuator_motors_sub.copy(&actuator_motors);
 	const bool angular_velocity_available = _angular_velocity_sub.copy(&angular_velocity);
+	const bool acceleration_available = _acceleration_sub.copy(&acceleration);
 	const uint8_t motor_count = motors_available ? motorCount(actuator_motors) : 0;
 	float mean_motor_command = 0.f;
 
@@ -206,6 +305,8 @@ void MotorHealthMonitor::Run()
 		configuration.excitation_threshold = _param_ftc_exc_min.get();
 		configuration.baseline_time = _param_ftc_base_t.get();
 		configuration.effectiveness_rate_limit = _param_ftc_est_rate.get();
+		configuration.forgetting_factor = _param_ftc_est_forg.get();
+		configuration.minimum_effectiveness = _param_ftc_est_lmin.get();
 		_estimator.update(dt, motor_count, actuator_motors.control, angular_velocity.xyz_derivative, configuration);
 	}
 
@@ -218,6 +319,30 @@ void MotorHealthMonitor::Run()
 				    && now >= _esc_status.timestamp
 				    && now - _esc_status.timestamp < 1_s;
 	status.model_residual = estimate.model_residual;
+	status.excitation = estimate.excitation;
+	status.imu_only = !status.esc_data_available;
+	status.maneuver_intensity = math::constrain(sqrtf(angular_velocity.xyz[0] * angular_velocity.xyz[0]
+				    + angular_velocity.xyz[1] * angular_velocity.xyz[1]
+				    + angular_velocity.xyz[2] * angular_velocity.xyz[2]) / 5.f, 0.f, 1.f);
+
+	if (acceleration_available) {
+		const float acceleration_magnitude = sqrtf(acceleration.xyz[0] * acceleration.xyz[0]
+						   + acceleration.xyz[1] * acceleration.xyz[1]
+						   + acceleration.xyz[2] * acceleration.xyz[2]);
+
+		if (!_acceleration_filter_initialized) {
+			_filtered_acceleration_magnitude = acceleration_magnitude;
+			_acceleration_filter_initialized = true;
+		}
+
+		const float vibration = fabsf(acceleration_magnitude - _filtered_acceleration_magnitude);
+		_filtered_acceleration_magnitude += math::constrain(dt / (0.5f + dt), 0.f, 1.f)
+						* (acceleration_magnitude - _filtered_acceleration_magnitude);
+		status.vibration_score = vibration / fmaxf(_param_ftc_fault_vib.get(), 0.1f);
+		status.external_disturbance_score = math::constrain((fabsf(acceleration_magnitude - 9.81f) / 20.f
+								 + estimate.model_residual) * 0.5f
+								 * (1.f - 0.5f * status.maneuver_intensity), 0.f, 1.f);
+	}
 	uint8_t confident_motors = 0;
 
 	for (uint8_t i = 0; i < motor_health_status_s::NUM_MOTORS; ++i) {
@@ -225,6 +350,10 @@ void MotorHealthMonitor::Run()
 		status.health[i] = NAN;
 		status.confidence[i] = 0.f;
 		status.residual[i] = NAN;
+		status.fault_probability[i] = 0.f;
+		status.fault_confidence[i] = 0.f;
+		status.fault_persistence[i] = 0.f;
+		status.fault_type[i] = motor_health_status_s::FAULT_NONE;
 	}
 
 	for (uint8_t i = 0; i < motor_count; ++i) {
@@ -274,12 +403,11 @@ void MotorHealthMonitor::Run()
 		}
 	}
 
+	classifyFaults(now, actuator_motors, status, dt);
+
 	_last_status = status;
 	_motor_health_status_pub.publish(status);
-
-	if (_param_ftc_ca_shadow.get()) {
-		publishShadow(actuator_motors, status);
-	}
+	publishModelStatus(now, angular_velocity, status);
 
 	perf_end(_cycle_perf);
 }

@@ -95,6 +95,8 @@ void MotorEffectivenessEstimator::update(float dt, uint8_t motor_count, const fl
 
 	const float excitation_threshold_sq = configuration.excitation_threshold * configuration.excitation_threshold;
 	const bool sufficiently_excited = excitation_sum > excitation_threshold_sq * motor_count;
+	_output.excitation = constrain(sqrtf(excitation_sum / motor_count)
+			     / fmaxf(configuration.excitation_threshold, 0.001f), 0.f, 1.f);
 	float prediction_error[AXES] {};
 	float error_norm_sq = 0.f;
 	float acceleration_norm_sq = 0.f;
@@ -116,7 +118,8 @@ void MotorEffectivenessEstimator::update(float dt, uint8_t motor_count, const fl
 
 	if (sufficiently_excited) {
 		float covariance_regressor[MAX_MOTORS] {};
-		float denominator = 0.998f;
+		const float forgetting_factor = constrain(configuration.forgetting_factor, 0.9f, 1.f);
+		float denominator = forgetting_factor;
 
 		for (uint8_t row = 0; row < motor_count; ++row) {
 			for (uint8_t column = 0; column < motor_count; ++column) {
@@ -144,7 +147,7 @@ void MotorEffectivenessEstimator::update(float dt, uint8_t motor_count, const fl
 			for (uint8_t row = 0; row < motor_count; ++row) {
 				for (uint8_t column = 0; column < motor_count; ++column) {
 					updated_covariance[row][column] = (_covariance[row][column]
-							- gain[row] * covariance_regressor[column]) / 0.998f;
+							- gain[row] * covariance_regressor[column]) / forgetting_factor;
 				}
 			}
 
@@ -188,12 +191,14 @@ void MotorEffectivenessEstimator::update(float dt, uint8_t motor_count, const fl
 		float target_effectiveness = 1.f;
 
 		if (_baseline_valid) {
-			target_effectiveness = constrain(current_norm[i] / _nominal_norm[i], 0.f, 1.f);
+			target_effectiveness = constrain(current_norm[i] / _nominal_norm[i],
+						 configuration.minimum_effectiveness, 1.f);
 		}
 
 		const float maximum_change = fmaxf(configuration.effectiveness_rate_limit, 0.01f) * dt;
 		const float difference = constrain(target_effectiveness - _effectiveness[i], -maximum_change, maximum_change);
-		_effectiveness[i] = constrain(_effectiveness[i] + difference, 0.f, 1.f);
+		_effectiveness[i] = constrain(_effectiveness[i] + difference,
+					      configuration.minimum_effectiveness, 1.f);
 		_output.effectiveness[i] = _effectiveness[i];
 		_output.residual[i] = 1.f - _effectiveness[i];
 	}
