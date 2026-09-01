@@ -2,6 +2,8 @@
 
 本目录记录 MERIVUS PX4 v1.14 实验性极端环境感知、诊断与容错增强。项目保留现有 EKF2、姿态、角速度、位置控制和 Commander 安全链路；新增功能首先以旁路观察和 shadow mode 运行。
 
+全项目视角从 [文档门户](../README.md) 和 [FTC 系统级架构](../architecture/FTC_ARCHITECTURE.md) 进入；模块验证状态以 [PROJECT_STATUS.md](../PROJECT_STATUS.md) 为统一索引。本目录继续保存算法、安全门、SITL 和 ULog 专项合同。
+
 统一参数前缀为 `FTC_`。所有可能影响执行器或飞行模式的能力默认关闭；当前实现只发布诊断状态和断开的恢复候选，不写入 `actuator_motors`、`actuator_outputs` 或 PX4 正常控制 setpoint。
 
 当前进度：

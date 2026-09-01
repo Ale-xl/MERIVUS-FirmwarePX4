@@ -68,7 +68,7 @@ PX4 参数名最多 16 个字符，因此主动分配和恢复开关使用 `FTC_
 | `MAV_0_MODE` | `0` | Normal 模式 | MEDIUM；完整 GCS 消息流 |
 | `MAV_0_RATE` | `0` | 自动取物理带宽的一半 | MEDIUM；57600 8N1 时为 2880 B/s |
 | `MAV_0_FLOW_CTRL` | `0` | 强制关闭流控 | MEDIUM；HyperLte 无 RTS/CTS |
-| `MAV_0_FORWARD` | `0` | 不转发 MAVLink | LOW | 
+| `MAV_0_FORWARD` | `0` | 不转发 MAVLink | LOW |
 | `MAV_0_RADIO_CTL` | `0` | 不使用 radio status 自动限速 | LOW |
 | `SER_TEL1_BAUD` | `57600` | TELEM1 波特率 | MEDIUM；必须与 HyperLte UART1 一致 |
 
