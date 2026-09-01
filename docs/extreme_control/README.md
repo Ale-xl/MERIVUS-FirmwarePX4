@@ -7,7 +7,7 @@
 当前进度：
 
 - G0 Baseline preserved：已完成。
-- G1 Motor health monitor compiles and logs：开发中。
+- G1 Motor health monitor compiles and logs：代码、消息/参数生成和估计器主机冒烟测试已完成；SITL/FMUv6C 全量构建与运行日志验证待 Ubuntu 构建机完成。
 - G2 及后续安全门：未完成，禁止据此开展危险实机试验。
 
 文档索引：
@@ -17,4 +17,3 @@
 - [ARCHITECTURE.md](ARCHITECTURE.md)：数据流、不变量与阶段边界。
 - [SAFETY_GATES.md](SAFETY_GATES.md)：逐级验证门槛。
 - 其余文件分别记录监测、估计、分配、冲击检测、恢复、SITL 和 ULog 合同。
-

@@ -41,3 +41,11 @@ param set FTC_SIM_EN 0
 ```
 
 `ftc_simulation_status` 记录目标值、实际斜坡值、电机索引和间歇状态。
+
+## 当前验证状态
+
+- 三个新增 uORB 消息：PX4 v1.14 生成器 header/source 生成通过。
+- 17 个 `FTC_` 参数：PX4 参数 JSON 生成通过。
+- 连续估计器：主机编译和合成 50% 退化测试通过。
+- `px4_sitl_default`：未构建；当前 Windows 主机没有项目要求的 Linux 构建环境。
+- 仿真起飞、注入、ULog 和误报场景：未运行，G2 不成立。
