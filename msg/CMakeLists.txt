@@ -89,7 +89,13 @@ set(msg_files
 	FollowTargetEstimator.msg
 	FollowTargetStatus.msg
 	FtcAllocationShadow.msg
+	FtcControlAuthority.msg
+	FtcEffectivenessMatrix.msg
+	FtcExtremeState.msg
+	FtcModelStatus.msg
+	FtcRecoveryStatus.msg
 	FtcSimulationStatus.msg
+	FtcSystemStatus.msg
 	GeneratorStatus.msg
 	GeofenceResult.msg
 	GimbalDeviceAttitudeStatus.msg
