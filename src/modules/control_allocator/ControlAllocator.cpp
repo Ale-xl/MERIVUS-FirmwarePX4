@@ -575,11 +575,48 @@ ControlAllocator::update_effectiveness_matrix_if_needed(EffectivenessUpdateReaso
 			int total_num_actuators = config.num_actuators_matrix[i];
 			_control_allocation[i]->setEffectivenessMatrix(config.effectiveness_matrices[i], config.trim[i],
 					config.linearization_point[i], total_num_actuators, reason == EffectivenessUpdateReason::CONFIGURATION_UPDATE);
+
+			if (_param_ftc_ca_shadow.get()) {
+				publish_ftc_effectiveness_matrix(i, config.effectiveness_matrices[i], config.trim[i],
+						config.linearization_point[i], minimum[i], maximum[i], total_num_actuators);
+			}
 		}
 
 		trims.timestamp = hrt_absolute_time();
 		_actuator_servos_trim_pub.publish(trims);
 	}
+}
+
+void
+ControlAllocator::publish_ftc_effectiveness_matrix(int matrix_index,
+		const ActuatorEffectiveness::EffectivenessMatrix &effectiveness,
+		const ActuatorVector &trim, const ActuatorVector &linearization_point,
+		const ActuatorVector &minimum, const ActuatorVector &maximum, int num_actuators)
+{
+	if (matrix_index < 0 || matrix_index >= ActuatorEffectiveness::MAX_NUM_MATRICES) {
+		return;
+	}
+
+	ftc_effectiveness_matrix_s snapshot{};
+	snapshot.timestamp = hrt_absolute_time();
+	snapshot.matrix_index = static_cast<uint8_t>(matrix_index);
+	snapshot.num_axes = NUM_AXES;
+	snapshot.num_actuators = static_cast<uint8_t>(num_actuators < NUM_ACTUATORS ? num_actuators : NUM_ACTUATORS);
+	snapshot.valid = snapshot.num_actuators > 0;
+
+	for (int actuator = 0; actuator < snapshot.num_actuators; ++actuator) {
+		snapshot.trim[actuator] = trim(actuator);
+		snapshot.linearization_point[actuator] = linearization_point(actuator);
+		snapshot.minimum[actuator] = minimum(actuator);
+		snapshot.maximum[actuator] = maximum(actuator);
+
+		for (int axis = 0; axis < NUM_AXES; ++axis) {
+			snapshot.effectiveness[axis * ftc_effectiveness_matrix_s::NUM_ACTUATORS + actuator]
+				= effectiveness(axis, actuator);
+		}
+	}
+
+	_ftc_effectiveness_matrix_pub[matrix_index].publish(snapshot);
 }
 
 void

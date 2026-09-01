@@ -77,6 +77,7 @@
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
 #include <uORB/topics/failure_detector_status.h>
+#include <uORB/topics/ftc_effectiveness_matrix.h>
 
 class ControlAllocator : public ModuleBase<ControlAllocator>, public ModuleParams, public px4::ScheduledWorkItem
 {
@@ -134,6 +135,10 @@ private:
 	void check_for_motor_failures();
 
 	void publish_control_allocator_status(int matrix_index);
+	void publish_ftc_effectiveness_matrix(int matrix_index,
+			const ActuatorEffectiveness::EffectivenessMatrix &effectiveness,
+			const ActuatorVector &trim, const ActuatorVector &linearization_point,
+			const ActuatorVector &minimum, const ActuatorVector &maximum, int num_actuators);
 
 	void publish_actuator_controls();
 
@@ -177,6 +182,7 @@ private:
 
 	// Outputs
 	uORB::PublicationMulti<control_allocator_status_s> _control_allocator_status_pub[2] {ORB_ID(control_allocator_status), ORB_ID(control_allocator_status)};
+	uORB::PublicationMulti<ftc_effectiveness_matrix_s> _ftc_effectiveness_matrix_pub[2] {ORB_ID(ftc_effectiveness_matrix), ORB_ID(ftc_effectiveness_matrix)};
 
 	uORB::Publication<actuator_motors_s>	_actuator_motors_pub{ORB_ID(actuator_motors)};
 	uORB::Publication<actuator_servos_s>	_actuator_servos_pub{ORB_ID(actuator_servos)};
@@ -209,7 +215,8 @@ private:
 		(ParamInt<px4::params::CA_AIRFRAME>) _param_ca_airframe,
 		(ParamInt<px4::params::CA_METHOD>) _param_ca_method,
 		(ParamInt<px4::params::CA_FAILURE_MODE>) _param_ca_failure_mode,
-		(ParamInt<px4::params::CA_R_REV>) _param_r_rev
+		(ParamInt<px4::params::CA_R_REV>) _param_r_rev,
+		(ParamBool<px4::params::FTC_CA_SHADOW>) _param_ftc_ca_shadow
 	)
 
 };
