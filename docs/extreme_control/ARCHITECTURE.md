@@ -3,20 +3,25 @@
 ## 数据流
 
 ```text
-Sensors -> EKF2 -> Existing PX4 controllers -> torque/thrust setpoint
-                                      |                 |
-                                      |                 v
-                                      |          Control Allocator -> actuator_motors -> outputs
-                                      |                                  |
-                                      +----------------------------------+
-                                                                         v
-                     Motor Health Monitor <- angular velocity/acceleration/status
-                               |
-                               +-> continuous effectiveness + confidence + residual
-                               |
-                               +-> adaptive allocation shadow (log only)
-                               |
-                               +-> impact/recovery observations (future, no command output)
+Sensors -> EKF2 -> existing PX4 controllers -> torque/thrust setpoint
+   |                                             |
+   |                                             v
+   |                                      Control Allocator -> actuator_motors -> outputs
+   |                                             |                  |
+   |                          read-only B_nominal snapshot           |
+   |                                             v                  |
+   +--> Motor Health/Model ----------------> B_dynamic shadow <------+
+   |       | fault type/probability              |
+   |       | lambda/confidence/model quality     +-> allocation residual
+   |       |                                     +-> control authority
+   |       v
+   +--> Extreme State Monitor <---------------- authority/saturation
+             | impact/hard landing/LOC
+             v
+       Recovery Manager -> disconnected rate/thrust/attitude candidate
+             |
+             v
+         FTC Supervisor -> ftc_system_status -> ULog
 ```
 
 ## 长期不变量
@@ -25,8 +30,8 @@ Sensors -> EKF2 -> Existing PX4 controllers -> torque/thrust setpoint
 2. 第一阶段模块只订阅现有 uORB 数据并发布 FTC 诊断 topic。
 3. shadow mode 不发布执行器或控制 setpoint。
 4. 低激励、未解锁、已落地、数据超时或数值异常时模型必须无效，不能把噪声解释为电机损伤。
-5. intervention 默认关闭，且在本阶段没有执行路径。
-6. EKF2、mc_att_control、mc_rate_control、mc_pos_control 与 Commander 的控制逻辑保持不变。
+5. `FTC_CA_EN`、`FTC_REC_ACT` 为保留接口；本阶段没有接管或仲裁钩子，即使置 1 也不写真实控制链路。
+6. EKF2、mc_att_control、mc_rate_control、mc_pos_control、Commander 和 flight_mode_manager 的控制逻辑保持不变。
 
 ## 版本适配
 

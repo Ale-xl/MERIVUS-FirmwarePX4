@@ -2,13 +2,15 @@
 
 本目录记录 MERIVUS PX4 v1.14 实验性极端环境感知、诊断与容错增强。项目保留现有 EKF2、姿态、角速度、位置控制和 Commander 安全链路；新增功能首先以旁路观察和 shadow mode 运行。
 
-统一参数前缀为 `FTC_`。所有可能影响执行器或飞行模式的能力必须默认关闭；本阶段不允许写入 `actuator_motors`、`actuator_outputs` 或控制 setpoint。
+统一参数前缀为 `FTC_`。所有可能影响执行器或飞行模式的能力默认关闭；当前实现只发布诊断状态和断开的恢复候选，不写入 `actuator_motors`、`actuator_outputs` 或 PX4 正常控制 setpoint。
 
 当前进度：
 
 - G0 Baseline preserved：已完成。
-- G1 Motor health monitor compiles and logs：代码、消息/参数生成和估计器主机冒烟测试已完成；SITL/FMUv6C 全量构建与运行日志验证待 Ubuntu 构建机完成。
-- G2 及后续安全门：未完成，禁止据此开展危险实机试验。
+- G1 感知/诊断：`IMPLEMENTED_UNVERIFIED`；消息和参数生成、纯估计器主机编译已验证。
+- G2 在线模型：电机效能为 `IMPLEMENTED_UNVERIFIED`，质量/惯量/重心为 `SKELETON`。
+- G3-G6 矩阵 shadow、权限、极端状态、恢复候选与 Supervisor：`IMPLEMENTED_UNVERIFIED`，未接管真实控制。
+- G7 及后续安全门：未完成，禁止据此开展危险实机试验。
 
 文档索引：
 
@@ -16,4 +18,5 @@
 - [LOCAL_MODIFICATIONS_AUDIT.md](LOCAL_MODIFICATIONS_AUDIT.md)：产品修改与来源边界。
 - [ARCHITECTURE.md](ARCHITECTURE.md)：数据流、不变量与阶段边界。
 - [SAFETY_GATES.md](SAFETY_GATES.md)：逐级验证门槛。
-- 其余文件分别记录监测、估计、分配、冲击检测、恢复、SITL 和 ULog 合同。
+- [PARAMETERS.md](PARAMETERS.md)：统一参数合同和默认值。
+- 其余文件分别记录故障诊断、在线辨识、分配、权限、冲击/失控、恢复、Supervisor、SITL 和 ULog 合同。
