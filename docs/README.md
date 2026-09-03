@@ -61,6 +61,7 @@
 ## 10. Testing
 
 - [L0–L9 测试矩阵](testing/TEST_MATRIX.md)
+- [FTC 人工集成测试指南](testing/FTC_MANUAL_INTEGRATION_TEST.md)
 - [FTC SITL 专项计划](extreme_control/SITL_TEST_PLAN.md)
 - [FTC ULog 合同](extreme_control/ULOG_ANALYSIS.md)
 
