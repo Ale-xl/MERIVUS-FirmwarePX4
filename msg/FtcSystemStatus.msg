@@ -21,3 +21,16 @@ uint16 degraded_motor_mask
 uint16 failed_motor_mask
 uint32 reason_mask
 float32 system_confidence
+
+uint8 INITIALIZING = 8
+uint8 CALIBRATING = 9
+uint8 READY = 10
+uint8 UNOBSERVABLE = 11
+uint8 SHADOW = 12
+uint8 RECOVERY_CANDIDATE = 13
+uint8 ACTIVE_ALLOCATION = 14
+uint8 mode
+bool allocation_active
+bool recovery_active
+uint32 allocation_fallback
+uint32 recovery_fallback

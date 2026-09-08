@@ -27,3 +27,11 @@ float32[3] body_rate_setpoint
 float32[3] thrust_body
 float32[4] attitude_setpoint_q
 bool yaw_sacrifice_requested
+
+uint8 VERTICAL_SPEED_RECOVERY = 11
+uint8 original_nav_state
+float32 vertical_speed_setpoint
+float32 altitude_reference
+float32 reentry_weight
+bool reentry_ready
+uint32 fallback_reason

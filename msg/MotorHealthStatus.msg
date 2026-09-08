@@ -42,3 +42,11 @@ float32[12] fault_probability
 float32[12] fault_confidence
 float32[12] fault_persistence
 uint8[12] fault_type
+
+uint8 NO_EVIDENCE = 0
+uint8 UNKNOWN = 1
+uint8 UNOBSERVABLE = 2
+uint8 VALID_HEALTHY = 3
+uint8 DEGRADED = 4
+uint8 FAILED = 5
+uint8[12] diagnosis_state

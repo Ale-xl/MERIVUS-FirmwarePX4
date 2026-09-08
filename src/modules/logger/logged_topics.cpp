@@ -67,6 +67,8 @@ void LoggedTopics::add_default_topics()
 	add_optional_topic("follow_target_status", 400);
 	add_optional_topic("flaps_setpoint", 1000);
 	// FTC modules start after logger on the MERIVUS airframe. Keep subscriptions pending until their first publication.
+	add_topic("ftc_arbitration_status", 20);
+	add_topic("ftc_allocation_status", 20);
 	add_topic("ftc_allocation_shadow", 20);
 	add_topic("ftc_control_authority", 20);
 	add_topic("ftc_effectiveness_matrix", 1000);

@@ -13,6 +13,13 @@ uint8 state
 bool valid
 bool matrix_valid
 uint8 motor_count
+
+# Reachable control increments around current command in nominal matrix units
+float32[3] positive_authority
+float32[3] negative_authority
+float32 thrust_up
+float32 thrust_down
+float32 reachable_residual
 uint16 saturated_mask
 
 float32 roll_authority

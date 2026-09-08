@@ -88,6 +88,8 @@ set(msg_files
 	FollowTarget.msg
 	FollowTargetEstimator.msg
 	FollowTargetStatus.msg
+	FtcArbitrationStatus.msg
+	FtcAllocationStatus.msg
 	FtcAllocationShadow.msg
 	FtcControlAuthority.msg
 	FtcEffectivenessMatrix.msg
