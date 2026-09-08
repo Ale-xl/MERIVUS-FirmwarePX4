@@ -223,6 +223,19 @@ void FtcControlMonitor::calculateShadow(hrt_abstime now)
 		authority.state = ftc_control_authority_s::DEGRADED_CONTROL;
 	}
 
+	for (uint8_t axis = 0; axis < 6; ++axis) {
+		float positive = 0.f, negative = 0.f;
+		for (uint8_t i = 0; i < _matrix.num_motors; ++i) {
+			const float up = fmaxf(maximum(i) - current(i), 0.f);
+			const float down = fmaxf(current(i) - minimum(i), 0.f);
+			const float b = _dynamic_matrix(axis, i);
+			positive += b >= 0.f ? b * up : -b * down;
+			negative += b >= 0.f ? b * down : -b * up;
+		}
+		if (axis < 3) { authority.positive_authority[axis] = positive; authority.negative_authority[axis] = negative; }
+		if (axis == 5) { authority.thrust_up = negative; authority.thrust_down = positive; }
+	}
+	authority.reachable_residual = shadow.residual_norm;
 	_last_authority = authority;
 	_shadow_pub.publish(shadow);
 	_authority_pub.publish(authority);
@@ -245,7 +258,7 @@ void FtcControlMonitor::Run()
 	const hrt_abstime now = hrt_absolute_time();
 	updateMatrix();
 
-	if (!_param_ftc_ca_shadow.get() || !_matrix_valid) {
+	if ((!_param_ftc_ca_shadow.get() && !_param_ftc_ca_en.get()) || !_matrix_valid) {
 		publishInvalid(now);
 		return;
 	}

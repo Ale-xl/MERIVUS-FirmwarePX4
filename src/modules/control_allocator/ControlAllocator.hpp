@@ -40,6 +40,10 @@
  */
 
 #pragma once
+#include "FtcAllocationPolicy.hpp"
+#include <uORB/topics/ftc_model_status.h>
+#include <uORB/topics/ftc_control_authority.h>
+#include <uORB/topics/ftc_allocation_status.h>
 
 #include <ActuatorEffectiveness.hpp>
 #include <ActuatorEffectivenessMultirotor.hpp>
@@ -133,6 +137,14 @@ private:
 	void update_effectiveness_matrix_if_needed(EffectivenessUpdateReason reason);
 
 	void check_for_motor_failures();
+	void update_ftc_allocation(float dt, hrt_abstime now);
+	FtcAllocationPolicy _ftc_policy{};
+	ActuatorEffectiveness::Configuration _ftc_nominal{};
+	bool _ftc_nominal_valid{false};
+	uORB::Subscription _ftc_model_sub{ORB_ID(ftc_model_status)};
+	uORB::Subscription _ftc_authority_sub{ORB_ID(ftc_control_authority)};
+	uORB::Publication<ftc_allocation_status_s> _ftc_allocation_pub{ORB_ID(ftc_allocation_status)};
+	hrt_abstime _ftc_last_status{0};
 
 	void publish_control_allocator_status(int matrix_index);
 	void publish_ftc_effectiveness_matrix(int matrix_index,
@@ -216,6 +228,8 @@ private:
 		(ParamInt<px4::params::CA_METHOD>) _param_ca_method,
 		(ParamInt<px4::params::CA_FAILURE_MODE>) _param_ca_failure_mode,
 		(ParamInt<px4::params::CA_R_REV>) _param_r_rev,
+		(ParamBool<px4::params::FTC_MON_EN>) _param_ftc_mon_en,
+		(ParamBool<px4::params::FTC_CA_EN>) _param_ftc_ca_en,
 		(ParamBool<px4::params::FTC_CA_SHADOW>) _param_ftc_ca_shadow
 	)
 
