@@ -57,6 +57,8 @@ bool MotorHealthMonitor::start()
 void MotorHealthMonitor::resetEstimator()
 {
 	_estimator.reset();
+	_alignment.reset();
+	_rigid_body.reset();
 	memset(_degraded_start, 0, sizeof(_degraded_start));
 	memset(_failed_start, 0, sizeof(_failed_start));
 	memset(_fault_probability_lpf, 0, sizeof(_fault_probability_lpf));
@@ -139,6 +141,9 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 					     : status.confidence[i] * 0.8f;
 		status.fault_persistence[i] = _degraded_start[i] == 0 ? 0.f : (now - _degraded_start[i]) * 1e-6f;
 		status.fault_type[i] = motor_health_status_s::FAULT_NONE;
+		status.diagnosis_state[i] = !status.model_valid ? motor_health_status_s::UNOBSERVABLE
+			: ((status.failed_mask & (1u << i)) ? motor_health_status_s::FAILED
+			   : ((status.degraded_mask & (1u << i)) ? motor_health_status_s::DEGRADED : motor_health_status_s::VALID_HEALTHY));
 
 		if (status.fault_probability[i] < _param_ftc_fault_p.get()) {
 			if (status.vibration_score > 1.f && degradation < 0.1f) {
@@ -149,6 +154,7 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 		}
 
 		++localized_faults;
+		if (!status.model_valid) { status.diagnosis_state[i] = motor_health_status_s::UNKNOWN; }
 
 		if (!esc_online || esc_failed) {
 			status.fault_type[i] = motor_health_status_s::FAULT_ESC_OR_POWER_FAILURE;
@@ -198,11 +204,11 @@ void MotorHealthMonitor::publishModelStatus(hrt_abstime now,
 	model.effectiveness_valid = health_status.model_valid;
 	model.valid = health_status.model_valid;
 	model.excitation = health_status.excitation;
-	model.model_quality = health_status.model_valid
-			      ? math::constrain((1.f - math::constrain(health_status.model_residual, 0.f, 1.f))
-						* health_status.excitation, 0.f, 1.f) : 0.f;
-	model.mass = NAN;
-	model.mass_valid = false;
+	model.model_quality = _estimator.output().model_quality;
+	model.mass = _rigid_body.mass();
+	model.mass_valid = _rigid_body.valid();
+	model.mass_age = _rigid_body.age();
+	model.mass_state = model.mass_valid ? ftc_model_status_s::ESTIMATE_AVAILABLE : ftc_model_status_s::NOT_OBSERVABLE;
 	model.inertia[0] = _param_ftc_est_ixx.get();
 	model.inertia[1] = _param_ftc_est_iyy.get();
 	model.inertia[2] = _param_ftc_est_izz.get();
@@ -224,7 +230,27 @@ void MotorHealthMonitor::publishModelStatus(hrt_abstime now,
 		rotational_norm_sq += torque * torque;
 	}
 
-	model.rotational_residual = sqrtf(rotational_norm_sq);
+	model.rigid_body_activity = sqrtf(rotational_norm_sq);
+	const auto &estimate = _estimator.output();
+	model.rotational_residual = estimate.prediction_residual;
+	model.model_prediction_residual = estimate.prediction_residual;
+	model.state = estimate.state;
+	model.baseline_learned = estimate.baseline_learned;
+	model.current_observable = estimate.current_observable;
+	model.update_allowed = estimate.update_allowed;
+	model.saturated = _estimator_input.saturated;
+	model.authority_limited = _estimator_input.authority_limited;
+	model.timing_aligned = _estimator_input.aligned;
+	model.actuator_headroom = _estimator_input.headroom;
+	model.control_residual = _estimator_input.control_residual;
+	model.last_valid_timestamp = estimate.last_valid_timestamp;
+	model.estimate_age = estimate.estimate_age;
+	model.update_count = estimate.update_count;
+	model.reset_count = estimate.reset_count;
+	model.condition_number = estimate.condition_number;
+	memcpy(model.estimate_uncertainty, estimate.uncertainty, sizeof(model.estimate_uncertainty));
+	memcpy(model.predicted_response, estimate.predicted_response, sizeof(model.predicted_response));
+	memcpy(model.measured_response, estimate.measured_response, sizeof(model.measured_response));
 
 	for (uint8_t i = 0; i < ftc_model_status_s::NUM_MOTORS; ++i) {
 		model.motor_effectiveness[i] = health_status.effectiveness[i];
@@ -305,16 +331,55 @@ void MotorHealthMonitor::Run()
 	const float dt = _last_run == 0 ? 0.02f : math::constrain((now - _last_run) * 1e-6f, 0.001f, 0.1f);
 	_last_run = now;
 
-	if (flight_valid) {
-		MotorEffectivenessEstimator::Configuration configuration{};
-		configuration.lpf_time_constant = _param_ftc_lpf_tc.get();
-		configuration.excitation_threshold = _param_ftc_exc_min.get();
-		configuration.baseline_time = _param_ftc_base_t.get();
-		configuration.effectiveness_rate_limit = _param_ftc_est_rate.get();
-		configuration.forgetting_factor = _param_ftc_est_forg.get();
-		configuration.minimum_effectiveness = _param_ftc_est_lmin.get();
-		_estimator.update(dt, motor_count, actuator_motors.control, angular_velocity.xyz_derivative, configuration);
+	_matrix_sub.update(&_matrix);
+	control_allocator_status_s allocation{};
+	_allocator_sub.copy(&allocation);
+	_alignment.push(actuator_motors.timestamp, actuator_motors.control);
+	_estimator_input = {};
+	_estimator_input.timestamp = now;
+	_estimator_input.motor_count = motor_count;
+	_estimator_input.aligned = _alignment.sample(angular_velocity.timestamp_sample,
+		static_cast<uint32_t>(_param_ftc_est_delay.get() * 1e6f), _estimator_input.control);
+	const bool matrix_valid = _matrix.valid && _matrix.matrix_index == 0 && _matrix.num_motors == motor_count
+		&& _matrix.num_actuators == motor_count && _matrix.num_axes == 6;
+	const bool allocation_fresh = allocation.timestamp && now >= allocation.timestamp && now - allocation.timestamp < 200_ms;
+	_estimator_input.valid = flight_valid && matrix_valid && allocation_fresh;
+	_estimator_input.authority_limited = !allocation_fresh || !allocation.torque_setpoint_achieved || !allocation.thrust_setpoint_achieved;
+	_estimator_input.headroom = 1.f;
+	for (uint8_t i = 0; i < motor_count; ++i) {
+		_estimator_input.saturated |= allocation.actuator_saturation[i] != 0;
+		const float range = fmaxf(_matrix.maximum[i] - _matrix.minimum[i], 0.01f);
+		_estimator_input.headroom = fminf(_estimator_input.headroom,
+			2.f * fminf(_matrix.maximum[i] - actuator_motors.control[i], actuator_motors.control[i] - _matrix.minimum[i]) / range);
+		for (uint8_t axis = 0; axis < 3; ++axis) {
+			_estimator_input.geometry[axis][i] = _matrix.effectiveness[axis * 16 + i];
+		}
 	}
+	for (uint8_t axis = 0; axis < 3; ++axis) {
+		_estimator_input.angular_acceleration[axis] = angular_velocity.xyz_derivative[axis];
+		_estimator_input.control_residual += allocation.unallocated_torque[axis] * allocation.unallocated_torque[axis]
+			+ allocation.unallocated_thrust[axis] * allocation.unallocated_thrust[axis];
+	}
+	_estimator_input.control_residual = sqrtf(_estimator_input.control_residual);
+	MotorEffectivenessEstimator::Configuration configuration{};
+	configuration.lpf_time_constant = _param_ftc_lpf_tc.get();
+	configuration.excitation_threshold = _param_ftc_exc_min.get();
+	configuration.baseline_time = _param_ftc_base_t.get();
+	configuration.effectiveness_rate_limit = _param_ftc_est_rate.get();
+	configuration.forgetting_factor = _param_ftc_est_forg.get();
+	configuration.minimum_effectiveness = _param_ftc_est_lmin.get();
+	configuration.stale_time = _param_ftc_est_age.get();
+	configuration.confidence_minimum = _param_ftc_conf_min.get();
+	configuration.residual_limit = _param_ftc_res_thr.get();
+	_estimator.update(dt, _estimator_input, configuration);
+	float thrust_fraction = 0.f;
+	for (uint8_t i = 0; i < motor_count; ++i) { thrust_fraction += actuator_motors.control[i] * _estimator.output().effectiveness[i]; }
+	thrust_fraction /= fmaxf(motor_count, 1.f);
+	const bool mass_observable = _estimator.output().estimate_valid && _param_ftc_thr_max.get() > 0.f
+		&& !_estimator_input.saturated && acceleration_available && now >= acceleration.timestamp && now - acceleration.timestamp < 200_ms
+		&& fabsf(acceleration.xyz[0]) < 0.5f && fabsf(acceleration.xyz[1]) < 0.5f
+		&& fabsf(angular_velocity.xyz[0]) + fabsf(angular_velocity.xyz[1]) + fabsf(angular_velocity.xyz[2]) < 0.2f;
+	_rigid_body.update(dt, thrust_fraction * _param_ftc_thr_max.get(), -acceleration.xyz[2], mass_observable);
 
 	const MotorEffectivenessEstimator::Output &estimate = _estimator.output();
 	motor_health_status_s status{};
@@ -349,7 +414,7 @@ void MotorHealthMonitor::Run()
 								 + estimate.model_residual) * 0.5f
 								 * (1.f - 0.5f * status.maneuver_intensity), 0.f, 1.f);
 	}
-	uint8_t confident_motors = 0;
+
 
 	for (uint8_t i = 0; i < motor_health_status_s::NUM_MOTORS; ++i) {
 		status.effectiveness[i] = NAN;
@@ -360,6 +425,9 @@ void MotorHealthMonitor::Run()
 		status.fault_confidence[i] = 0.f;
 		status.fault_persistence[i] = 0.f;
 		status.fault_type[i] = motor_health_status_s::FAULT_NONE;
+		status.diagnosis_state[i] = !status.model_valid ? motor_health_status_s::UNOBSERVABLE
+			: ((status.failed_mask & (1u << i)) ? motor_health_status_s::FAILED
+			   : ((status.degraded_mask & (1u << i)) ? motor_health_status_s::DEGRADED : motor_health_status_s::VALID_HEALTHY));
 	}
 
 	for (uint8_t i = 0; i < motor_count; ++i) {
@@ -368,17 +436,10 @@ void MotorHealthMonitor::Run()
 		status.confidence[i] = flight_valid ? estimate.confidence[i] : 0.f;
 		status.residual[i] = estimate.residual[i];
 
-		if (status.confidence[i] >= _param_ftc_conf_min.get()) {
-			++confident_motors;
-		}
 	}
-
-	status.model_valid = flight_valid && estimate.baseline_valid
-			     && confident_motors == motor_count
-			     && estimate.model_residual <= _param_ftc_res_thr.get();
+	status.model_valid = flight_valid && estimate.estimate_valid;
 	status.state = status.model_valid ? motor_health_status_s::STATE_VALID
-		       : (flight_valid && !estimate.baseline_valid ? motor_health_status_s::STATE_CALIBRATING
-			  : motor_health_status_s::STATE_INVALID);
+		: (flight_valid && !estimate.baseline_learned ? motor_health_status_s::STATE_CALIBRATING : motor_health_status_s::STATE_INVALID);
 	const hrt_abstime persistence = static_cast<hrt_abstime>(_param_ftc_fail_t.get() * 1_s);
 
 	for (uint8_t i = 0; i < motor_count; ++i) {
@@ -434,6 +495,10 @@ int MotorHealthMonitor::print_status()
 	}
 
 	perf_print_counter(_cycle_perf);
+	const auto &estimate = _estimator.output();
+	PX4_INFO("baseline %u observable %u valid %u state %u age %.2f uncertainty %.3f updates %lu",
+		(unsigned)estimate.baseline_learned, (unsigned)estimate.current_observable, (unsigned)estimate.estimate_valid,
+		(unsigned)estimate.state, (double)estimate.estimate_age, (double)estimate.uncertainty[0], (unsigned long)estimate.update_count);
 	return 0;
 }
 

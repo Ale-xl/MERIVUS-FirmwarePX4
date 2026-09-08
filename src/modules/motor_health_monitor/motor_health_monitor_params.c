@@ -354,3 +354,36 @@ PARAM_DEFINE_FLOAT(FTC_REC_KD, 0.8f);
  * @group Fault Tolerant Control
  */
 PARAM_DEFINE_FLOAT(FTC_REC_ALT, 3.0f);
+
+/**
+ * Command to angular-response delay
+ *
+ * Align actuator publication time with IMU sample time. Calibrate per airframe.
+ * @unit s
+ * @min 0
+ * @max 0.4
+ * @decimal 3
+ * @group Fault Tolerant Control
+ */
+PARAM_DEFINE_FLOAT(FTC_EST_DELAY, 0.04f);
+
+/**
+ * Maximum age of effectiveness parameter update
+ * @unit s
+ * @min 0.2
+ * @max 30
+ * @group Fault Tolerant Control
+ */
+PARAM_DEFINE_FLOAT(FTC_EST_AGE, 10.f);
+
+/**
+ * Calibrated total thrust at full command, mass observation only
+ *
+ * Zero means uncalibrated; mass remains unavailable. Assumes equal motors
+ * and a linear command-to-thrust contract. Never used for active control.
+ * @unit N
+ * @min 0
+ * @max 1000
+ * @group Fault Tolerant Control
+ */
+PARAM_DEFINE_FLOAT(FTC_THR_MAX, 0.f);

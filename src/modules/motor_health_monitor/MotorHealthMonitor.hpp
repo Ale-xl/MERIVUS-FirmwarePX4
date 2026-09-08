@@ -7,6 +7,10 @@
 #pragma once
 
 #include "MotorEffectivenessEstimator.hpp"
+#include "CommandAlignment.hpp"
+#include "RigidBodyObserver.hpp"
+#include <uORB/topics/control_allocator_status.h>
+#include <uORB/topics/ftc_effectiveness_matrix.h>
 
 #include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
@@ -63,6 +67,12 @@ private:
 	uORB::Publication<ftc_model_status_s> _model_status_pub{ORB_ID(ftc_model_status)};
 
 	MotorEffectivenessEstimator _estimator{};
+	CommandAlignment _alignment{};
+	RigidBodyObserver _rigid_body{};
+	MotorEffectivenessEstimator::Input _estimator_input{};
+	ftc_effectiveness_matrix_s _matrix{};
+	uORB::Subscription _matrix_sub{ORB_ID(ftc_effectiveness_matrix)};
+	uORB::Subscription _allocator_sub{ORB_ID(control_allocator_status)};
 	motor_health_status_s _last_status{};
 	vehicle_status_s _vehicle_status{};
 	vehicle_land_detected_s _land_detected{};
@@ -84,6 +94,9 @@ private:
 
 	DEFINE_PARAMETERS(
 		(ParamBool<px4::params::FTC_MON_EN>) _param_ftc_mon_en,
+		(ParamFloat<px4::params::FTC_EST_DELAY>) _param_ftc_est_delay,
+		(ParamFloat<px4::params::FTC_EST_AGE>) _param_ftc_est_age,
+		(ParamFloat<px4::params::FTC_THR_MAX>) _param_ftc_thr_max,
 		(ParamFloat<px4::params::FTC_MIN_THR>) _param_ftc_min_thr,
 		(ParamFloat<px4::params::FTC_LPF_TC>) _param_ftc_lpf_tc,
 		(ParamFloat<px4::params::FTC_EXC_MIN>) _param_ftc_exc_min,
