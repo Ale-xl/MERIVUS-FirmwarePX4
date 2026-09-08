@@ -82,74 +82,85 @@ void FtcSupervisor::Run()
 	_authority_sub.copy(&authority);
 	_extreme_sub.copy(&extreme);
 	_recovery_sub.copy(&recovery);
+	ftc_allocation_status_s allocation{};
+	ftc_arbitration_status_s arbitration{};
+	_allocation_sub.copy(&allocation);
+	_arbitration_sub.copy(&arbitration);
 	ftc_system_status_s status{};
 	status.timestamp = hrt_absolute_time();
+	auto fresh = [&status](uint64_t timestamp) { return timestamp && status.timestamp >= timestamp && status.timestamp - timestamp < 300000; };
 	status.monitor_enabled = _param_ftc_mon_en.get();
-	status.model_valid = model.valid;
-	status.control_authority_valid = authority.valid;
-	status.recovery_eligible = recovery.eligible;
-	status.intervention_enabled = false; // FTC_REC_ACT has no connected arbitration path
-	status.degraded_motor_mask = health.degraded_mask;
-	status.failed_motor_mask = health.failed_mask;
-	status.fault_confirmed = health.failed_mask != 0 || health.degraded_mask != 0;
-	status.state = ftc_system_status_s::NORMAL;
-
+	status.model_valid = fresh(model.timestamp) && model.valid;
+	status.control_authority_valid = fresh(authority.timestamp) && authority.valid;
+	status.recovery_eligible = fresh(recovery.timestamp) && recovery.eligible;
+	status.allocation_active = fresh(allocation.timestamp) && allocation.active;
+	status.recovery_active = fresh(arbitration.timestamp) && arbitration.active;
+	status.intervention_enabled = status.allocation_active || status.recovery_active;
+	status.allocation_fallback = allocation.fallback_reason;
+	status.recovery_fallback = arbitration.fallback_reason;
+	status.degraded_motor_mask = fresh(health.timestamp) ? health.degraded_mask : 0;
+	status.failed_motor_mask = fresh(health.timestamp) ? health.failed_mask : 0;
+	status.fault_confirmed = status.degraded_motor_mask || status.failed_motor_mask;
+	status.state = ftc_system_status_s::INITIALIZING;
+	status.mode = status.monitor_enabled ? 1 : 0;
 	if (!status.monitor_enabled) {
 		status.state = ftc_system_status_s::DISABLED;
-
 	} else {
-		if (!model.valid) {
+		if (!status.model_valid) {
 			status.reason_mask |= REASON_MODEL_INVALID;
+			status.state = !fresh(model.timestamp) ? ftc_system_status_s::INITIALIZING
+				: (!model.baseline_learned ? ftc_system_status_s::CALIBRATING : ftc_system_status_s::UNOBSERVABLE);
+		} else if (!status.control_authority_valid) {
+			status.state = ftc_system_status_s::READY;
+			status.reason_mask |= REASON_AUTHORITY_DEGRADED;
+		} else {
+			status.state = model.current_observable ? ftc_system_status_s::NORMAL : ftc_system_status_s::UNOBSERVABLE;
+			status.mode = 2;
+			if (model.current_observable) { status.state = ftc_system_status_s::SHADOW; }
 		}
-
-		if (health.degraded_mask != 0) {
-			status.reason_mask |= REASON_MOTOR_DEGRADED;
+		if (!fresh(health.timestamp) || !fresh(extreme.timestamp) || !fresh(recovery.timestamp)) {
+			status.reason_mask |= 1u << 6;
+			status.state = ftc_system_status_s::INITIALIZING;
+		}
+		if (status.degraded_motor_mask) { status.reason_mask |= REASON_MOTOR_DEGRADED; status.state = ftc_system_status_s::DEGRADED; }
+		if (status.failed_motor_mask) { status.reason_mask |= REASON_MOTOR_FAILED; status.state = ftc_system_status_s::FAULT_CONFIRMED; }
+		if (status.control_authority_valid && authority.state != ftc_control_authority_s::FULL_CONTROL) {
+			status.reason_mask |= REASON_AUTHORITY_DEGRADED;
 			status.state = ftc_system_status_s::DEGRADED;
 		}
-
-		if (health.failed_mask != 0) {
-			status.reason_mask |= REASON_MOTOR_FAILED;
-			status.state = ftc_system_status_s::FAULT_CONFIRMED;
-		}
-
-		if (authority.valid && authority.state != ftc_control_authority_s::FULL_CONTROL) {
-			status.reason_mask |= REASON_AUTHORITY_DEGRADED;
-
-			if (status.state < ftc_system_status_s::DEGRADED) {
-				status.state = ftc_system_status_s::DEGRADED;
-			}
-		}
-
-		if (extreme.impact_detected || extreme.loc_state >= ftc_extreme_state_s::LOC_RECOVERY_RECOMMENDED) {
+		if (fresh(extreme.timestamp) && extreme.valid && (extreme.impact_detected || extreme.loc_state >= ftc_extreme_state_s::LOC_RECOVERY_RECOMMENDED)) {
 			status.reason_mask |= REASON_EXTREME_STATE;
-			status.state = recovery.eligible ? ftc_system_status_s::RECOVERY_READY : ftc_system_status_s::DEGRADED;
+			status.state = ftc_system_status_s::DEGRADED;
 		}
-
-		if (recovery.active) {
+		if (fresh(recovery.timestamp) && recovery.candidate_valid) {
+			status.mode = 3;
+			status.state = ftc_system_status_s::RECOVERY_CANDIDATE;
+		}
+		if (status.allocation_active) { status.state = ftc_system_status_s::ACTIVE_ALLOCATION; status.mode = 4; }
+		if (status.recovery_active) {
+			status.mode = 4;
 			status.state = recovery.state == ftc_recovery_status_s::EMERGENCY_LAND
-				       ? ftc_system_status_s::EMERGENCY_LAND : ftc_system_status_s::RECOVERY_ACTIVE;
+				? ftc_system_status_s::EMERGENCY_LAND : ftc_system_status_s::RECOVERY_ACTIVE;
 		}
-
-		if (recovery.state == ftc_recovery_status_s::ABORTED || recovery.state == ftc_recovery_status_s::FAILED) {
+		if (fresh(recovery.timestamp) && (recovery.state == ftc_recovery_status_s::ABORTED || recovery.state == ftc_recovery_status_s::FAILED)) {
 			status.reason_mask |= REASON_RECOVERY_ABORTED;
 			status.state = ftc_system_status_s::FAILED;
 		}
 	}
-
-	const float model_confidence = model.valid ? model.model_quality : 0.f;
-	const float authority_confidence = authority.valid ? authority.minimum_attitude_authority : 0.f;
-	const float extreme_confidence = extreme.valid ? 1.f - extreme.loss_of_control_score : 0.f;
-	status.system_confidence = math::constrain((model_confidence + authority_confidence + extreme_confidence) / 3.f, 0.f, 1.f);
+	const float mc = status.model_valid ? model.model_quality : 0.f;
+	const float ac = status.control_authority_valid ? authority.minimum_attitude_authority : 0.f;
+	const float ec = fresh(extreme.timestamp) && extreme.valid ? 1.f - extreme.loss_of_control_score : 0.f;
+	status.system_confidence = math::constrain((mc + ac + ec) / 3.f, 0.f, 1.f);
 	_last_status = status;
 	_status_pub.publish(status);
 }
 
 int FtcSupervisor::print_status()
 {
-	PX4_INFO("state: %u, confidence %.2f, degraded 0x%04x, failed 0x%04x, intervention: disconnected%s",
+	PX4_INFO("state: %u, confidence %.2f, degraded 0x%04x, failed 0x%04x, intervention: %s",
 		 (unsigned)_last_status.state, (double)_last_status.system_confidence,
 		 (unsigned)_last_status.degraded_motor_mask, (unsigned)_last_status.failed_motor_mask,
-		 _param_ftc_rec_act.get() ? " (requested)" : "");
+		 _last_status.intervention_enabled ? "active" : "inactive");
 	PX4_INFO("reason mask: 0x%08lx, model: %s, authority: %s, recovery eligible: %s",
 		 (unsigned long)_last_status.reason_mask, _last_status.model_valid ? "valid" : "invalid",
 		 _last_status.control_authority_valid ? "valid" : "invalid",

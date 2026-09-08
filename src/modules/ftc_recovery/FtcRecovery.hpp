@@ -5,6 +5,8 @@
  ****************************************************************************/
 
 #pragma once
+#include "FtcRecoveryController.hpp"
+#include <uORB/topics/ftc_arbitration_status.h>
 
 #include <drivers/drv_hrt.h>
 #include <px4_platform_common/module.h>
@@ -40,10 +42,9 @@ public:
 
 private:
 	void Run() override;
-	void transition(uint8_t state, hrt_abstime now);
-	void calculateLevelQuaternion(const float q[4], float q_d[4]) const;
-	void generateCandidate(const vehicle_attitude_s &attitude, const vehicle_angular_velocity_s &angular_velocity,
-			       const vehicle_rates_setpoint_s &current_setpoint, ftc_recovery_status_s &status) const;
+	FtcRecoveryController _controller{};
+	hrt_abstime _last_run{0};
+	uORB::Subscription _arbitration_sub{ORB_ID(ftc_arbitration_status)};
 
 	uORB::Subscription _extreme_sub{ORB_ID(ftc_extreme_state)};
 	uORB::Subscription _authority_sub{ORB_ID(ftc_control_authority)};
@@ -57,11 +58,11 @@ private:
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 	uORB::Publication<ftc_recovery_status_s> _status_pub{ORB_ID(ftc_recovery_status)};
 
-	uint8_t _state{ftc_recovery_status_s::DISABLED};
-	hrt_abstime _state_entered{0};
 	ftc_recovery_status_s _last_status{};
 
 	DEFINE_PARAMETERS(
+		(ParamBool<px4::params::FTC_MON_EN>) _param_ftc_mon_en,
+		(ParamFloat<px4::params::MPC_THR_HOVER>) _param_mpc_thr_hover,
 		(ParamBool<px4::params::FTC_REC_EN>) _param_ftc_rec_en,
 		(ParamBool<px4::params::FTC_REC_ACT>) _param_ftc_rec_act,
 		(ParamFloat<px4::params::FTC_REC_RATE>) _param_ftc_rec_rate,
