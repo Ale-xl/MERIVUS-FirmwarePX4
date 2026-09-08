@@ -21,6 +21,11 @@ public:
 		float lambda[Motors] {}, uncertainty[Motors] {};
 	};
 	FtcAllocationPolicy() { for (float &value : _lambda) { value = 1.f; } }
+	void resetGeometry()
+	{
+		for (float &value : _lambda) { value = 1.f; }
+		_fault_elapsed = 0.f; _engaged = _yaw_relaxed = active = false; yaw_weight = 1.f;
+	}
 	void update(float dt, const Input &input)
 	{
 		reason = 0;
@@ -30,15 +35,17 @@ public:
 		if (!fresh(input.now, input.model_timestamp, 200000) || !fresh(input.now, input.authority_timestamp, 200000)
 		    || !isfinite(input.estimate_age) || input.estimate_age > 2.f) { reason |= STALE_INPUT; }
 		if (!input.model_valid) { reason |= INVALID_MODEL; }
-		if (!input.authority_valid || input.attitude_authority < 0.35f || input.thrust_authority < 0.25f) { reason |= AUTHORITY; }
+		if (!input.authority_valid || !isfinite(input.attitude_authority) || !isfinite(input.thrust_authority)
+		    || !isfinite(input.yaw_authority) || input.attitude_authority < 0.35f || input.thrust_authority < 0.25f) { reason |= AUTHORITY; }
 		if (_reset_count != input.reset_count) { reason |= RESET; _reset_count = input.reset_count; _fault_elapsed = 0.f; }
 		bool fault = false;
 		for (unsigned i = 0; i < input.count && i < Motors; ++i) {
 			if (!isfinite(input.lambda[i]) || input.lambda[i] < 0.1f || input.lambda[i] > 1.f
-			    || !isfinite(input.uncertainty[i]) || input.uncertainty[i] > 0.12f) { reason |= UNCERTAINTY; }
+		    || !isfinite(input.uncertainty[i]) || input.uncertainty[i] < 0.f || input.uncertainty[i] > 0.12f) { reason |= UNCERTAINTY; }
 			fault |= input.lambda[i] < (_engaged ? 0.98f : 0.95f);
 		}
 		dt = fminf(fmaxf(dt, 0.f), 0.1f);
+		if (reason & (DISARMED | UNSUPPORTED)) { resetGeometry(); }
 		_fault_elapsed = reason == 0 && fault ? _fault_elapsed + dt : 0.f;
 		if (_fault_elapsed < 1.f) { reason |= NO_PERSISTENT_FAULT; }
 		_engaged = reason == 0;
@@ -52,7 +59,7 @@ public:
 			nominal &= fabsf(_lambda[i] - 1.f) < 1e-5f;
 		}
 		if (!_engaged && nominal) { for (float &v : _lambda) { v = 1.f; } }
-		active = !nominal;
+		active = !nominal || yaw_weight < 0.99999f;
 		state = _engaged ? (changed ? BLENDING : ACTIVE) : (active ? FALLBACK : (input.enabled ? WAITING : NOMINAL));
 		_yaw_relaxed = _engaged && input.yaw_authority < (_yaw_relaxed ? 0.3f : 0.2f);
 		yaw_weight += fminf(fmaxf((_yaw_relaxed ? 0.f : 1.f) - yaw_weight, -dt), dt);

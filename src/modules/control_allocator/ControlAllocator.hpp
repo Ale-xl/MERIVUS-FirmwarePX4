@@ -144,7 +144,7 @@ private:
 	uORB::Subscription _ftc_model_sub{ORB_ID(ftc_model_status)};
 	uORB::Subscription _ftc_authority_sub{ORB_ID(ftc_control_authority)};
 	uORB::Publication<ftc_allocation_status_s> _ftc_allocation_pub{ORB_ID(ftc_allocation_status)};
-	hrt_abstime _ftc_last_status{0};
+	hrt_abstime _ftc_last_status{0}, _ftc_last_update{0}, _ftc_command_timestamp{0};
 
 	void publish_control_allocator_status(int matrix_index);
 	void publish_ftc_effectiveness_matrix(int matrix_index,
@@ -202,6 +202,7 @@ private:
 
 	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
+	uORB::Subscription _ftc_parameter_update_sub{ORB_ID(parameter_update)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
 	uORB::Subscription _failure_detector_status_sub{ORB_ID(failure_detector_status)};
 

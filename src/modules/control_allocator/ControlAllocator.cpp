@@ -306,6 +306,12 @@ ControlAllocator::Run()
 #endif
 
 	// Check if parameters have changed
+	if (_ftc_parameter_update_sub.updated()) {
+		parameter_update_s update{};
+		_ftc_parameter_update_sub.copy(&update);
+		_param_ftc_mon_en.update(); _param_ftc_ca_shadow.update(); _param_ftc_ca_en.update();
+	}
+
 	if (_parameter_update_sub.updated() && !_armed) {
 		// clear update
 		parameter_update_s param_update;
@@ -366,6 +372,7 @@ ControlAllocator::Run()
 	// Run allocator on torque changes
 	if (_vehicle_torque_setpoint_sub.update(&vehicle_torque_setpoint)) {
 		_torque_sp = matrix::Vector3f(vehicle_torque_setpoint.xyz);
+		_ftc_command_timestamp = vehicle_torque_setpoint.timestamp;
 
 		do_update = true;
 		_timestamp_sample = vehicle_torque_setpoint.timestamp_sample;
@@ -389,7 +396,13 @@ ControlAllocator::Run()
 		check_for_motor_failures();
 
 		update_effectiveness_matrix_if_needed(EffectivenessUpdateReason::NO_EXTERNAL_UPDATE);
-		update_ftc_allocation(dt, now);
+	}
+
+	const float ftc_dt = _ftc_last_update ? (now - _ftc_last_update) * 1e-6f : dt;
+	_ftc_last_update = now;
+	update_ftc_allocation(ftc_dt, now);
+
+	if (do_update) {
 
 		// Set control setpoint vector(s)
 		matrix::Vector<float, NUM_AXES> c[ActuatorEffectiveness::MAX_NUM_MATRICES];
@@ -586,6 +599,7 @@ ControlAllocator::update_effectiveness_matrix_if_needed(EffectivenessUpdateReaso
 			}
 		}
 
+		if (reason == EffectivenessUpdateReason::CONFIGURATION_UPDATE) { _ftc_policy.resetGeometry(); }
 		_ftc_nominal = config;
 		_ftc_nominal_valid = true;
 		trims.timestamp = hrt_absolute_time();
@@ -602,7 +616,10 @@ void ControlAllocator::update_ftc_allocation(float dt, hrt_abstime now)
 	FtcAllocationPolicy::Input input{};
 	input.now = now;
 	input.enabled = _param_ftc_mon_en.get() && _param_ftc_ca_en.get();
-	input.armed = _armed;
+	vehicle_status_s vehicle{};
+	_vehicle_status_sub.copy(&vehicle);
+	input.armed = _armed && FtcAllocationPolicy::fresh(now, vehicle.timestamp, 1000000)
+		&& !vehicle.failsafe && !vehicle.is_vtol && vehicle.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING;
 	input.supported = _ftc_nominal_valid && _num_control_allocation == 1
 		&& _effectiveness_source_id == EffectivenessSource::MULTIROTOR && _handled_motor_failure_bitmask == 0
 		&& _num_actuators[1] == 0 && _param_r_rev.get() == 0
@@ -610,7 +627,7 @@ void ControlAllocator::update_ftc_allocation(float dt, hrt_abstime now)
 	input.count = _num_actuators[0];
 	input.model_timestamp = model.timestamp;
 	input.authority_timestamp = authority.timestamp;
-	input.model_valid = model.valid && model.motor_count == input.count;
+	input.model_valid = model.valid && model.motor_count == input.count && FtcAllocationPolicy::fresh(now, _ftc_command_timestamp, 200000);
 	input.authority_valid = authority.valid && authority.matrix_valid;
 	input.estimate_age = model.estimate_age;
 	input.reset_count = model.reset_count;
