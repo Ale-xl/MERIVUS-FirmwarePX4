@@ -33,6 +33,8 @@
 
 #pragma once
 
+#include "../ftc_recovery/FtcRateInput.hpp"
+
 #include <lib/rate_control/rate_control.hpp>
 #include <lib/matrix/matrix/math.hpp>
 #include <lib/perf/perf_counter.h>
@@ -90,6 +92,7 @@ private:
 	void updateActuatorControlsStatus(const vehicle_torque_setpoint_s &vehicle_torque_setpoint, float dt);
 
 	RateControl _rate_control; ///< class for rate control calculations
+	FtcRateInput _ftc_input{this};
 
 	uORB::Subscription _battery_status_sub{ORB_ID(battery_status)};
 	uORB::Subscription _control_allocator_status_sub{ORB_ID(control_allocator_status)};
