@@ -126,3 +126,53 @@ TEST(FtcRecoveryController, PositionLossUsesControlledVerticalDescent)
 	EXPECT_LT(controller.output().thrust, 0.f);
 	EXPECT_GT(controller.output().thrust, -1.f);
 }
+
+TEST(FtcAllocationPolicy, StructuralGateRestoresNominalImmediately)
+{
+ FtcAllocationPolicy policy;
+ FtcAllocationPolicy::Input in{};
+ in.enabled = in.armed = in.supported = in.model_valid = in.authority_valid = true;
+ in.count = 4; in.estimate_age = 0.f;
+ in.attitude_authority = in.thrust_authority = 1.f; in.yaw_authority = 0.1f;
+ for (unsigned i = 0; i < 4; ++i) { in.lambda[i] = 0.7f; in.uncertainty[i] = 0.02f; }
+ for (unsigned k = 1; k < 200; ++k) {
+  in.now = in.model_timestamp = in.authority_timestamp = k*20000; policy.update(0.02f, in);
+ }
+ ASSERT_TRUE(policy.active); EXPECT_LT(policy.yaw_weight, 0.1f);
+ in.supported = false; policy.update(0.02f, in);
+ EXPECT_FALSE(policy.active); EXPECT_FLOAT_EQ(policy.lambda(0), 1.f); EXPECT_FLOAT_EQ(policy.yaw_weight, 1.f);
+}
+TEST(FtcRecoveryArbiter, RejectsOutOfBoundsCandidateAndModeChange)
+{
+ FtcRecoveryArbiter arb;
+ FtcRecoveryArbiter::Input in{};
+ in.enabled = in.flight_allowed = in.candidate_valid = in.mode_matches = true;
+ in.now = in.normal_timestamp = in.candidate_timestamp = 1000000;
+ in.normal[3] = -0.5f; in.candidate[3] = 0.5f;
+ arb.update(0.02f, in); EXPECT_FALSE(arb.active); EXPECT_NE(arb.reason & FtcRecoveryArbiter::INVALID, 0u);
+ in.candidate[3] = -0.5f; arb.update(0.02f, in); ASSERT_TRUE(arb.active);
+ in.mode_matches = false; in.hard_exit = true; arb.update(0.02f, in);
+ EXPECT_FALSE(arb.active); EXPECT_FLOAT_EQ(arb.output[3], in.normal[3]);
+}
+TEST(FtcRecoveryController, InvertedTimeoutCannotCommandVerticalDescent)
+{
+ FtcRecoveryController controller;
+ FtcRecoveryController::Input in{};
+ in.enabled = in.fresh = in.eligible = in.mode_allowed = in.vertical_valid = in.controllable = true;
+ in.now = 1000000; controller.update(0.02f, in);
+ in.armed = true; in.landed = false; in.trigger = 1; in.q[0] = 0.f; in.q[1] = 1.f;
+ for (unsigned i = 0; i < 1100; ++i) { in.now += 20000; controller.update(0.02f, in); }
+ EXPECT_EQ(controller.output().state, FtcRecoveryController::FAILED);
+ EXPECT_FALSE(controller.output().candidate_valid); EXPECT_NE(controller.output().fallback_reason, 0u);
+}
+TEST(FtcRecoveryController, ReentryWaitsForNormalSetpointMatching)
+{
+ FtcRecoveryController controller;
+ FtcRecoveryController::Input in{};
+ in.enabled = in.fresh = in.eligible = in.mode_allowed = in.vertical_valid = in.position_valid = in.controllable = true;
+ in.now = 1000000; controller.update(0.02f, in);
+ in.armed = true; in.landed = false; in.trigger = 1; in.normal_rates[0] = 1.5f;
+ for (unsigned i = 0; i < 550; ++i) { in.now += 20000; controller.update(0.02f, in); }
+ EXPECT_EQ(controller.output().state, FtcRecoveryController::CONTROL_REENTRY);
+ EXPECT_FALSE(controller.output().reentry_ready); EXPECT_FLOAT_EQ(controller.output().reentry_weight, 1.f);
+}

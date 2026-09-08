@@ -15,6 +15,7 @@ private:
 	void updateCondition(uint8_t count);
 	float _covariance[MAX_MOTORS][MAX_MOTORS] {};
 	float _information[MAX_MOTORS][MAX_MOTORS] {};
+	float _eigen_workspace[MAX_MOTORS][MAX_MOTORS] {};
 	float _filtered_control[MAX_MOTORS] {};
 	float _control_mean[MAX_MOTORS] {};
 	float _filtered_response[AXES] {};

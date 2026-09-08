@@ -37,7 +37,7 @@ void MotorEffectivenessEstimator::reset()
 
 void MotorEffectivenessEstimator::updateCondition(uint8_t count)
 {
-	float a[MAX_MOTORS][MAX_MOTORS];
+	auto &a = _eigen_workspace;
 	memcpy(a, _information, sizeof(a));
 	// Bounded symmetric Jacobi sweep, run every ten monitor samples.
 	for (unsigned sweep = 0; sweep < 8; ++sweep) {

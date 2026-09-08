@@ -16,6 +16,7 @@
 #include <uORB/SubscriptionInterval.hpp>
 #include <uORB/topics/actuator_motors.h>
 #include <uORB/topics/ftc_allocation_shadow.h>
+#include <uORB/topics/ftc_allocation_status.h>
 #include <uORB/topics/ftc_control_authority.h>
 #include <uORB/topics/ftc_effectiveness_matrix.h>
 #include <uORB/topics/motor_health_status.h>
@@ -44,6 +45,7 @@ private:
 	void calculateShadow(hrt_abstime now);
 	float axisAuthority(uint8_t axis) const;
 
+	uORB::Subscription _allocation_sub{ORB_ID(ftc_allocation_status)};
 	uORB::Subscription _matrix_sub{ORB_ID(ftc_effectiveness_matrix)};
 	uORB::Subscription _health_sub{ORB_ID(motor_health_status)};
 	uORB::Subscription _motors_sub{ORB_ID(actuator_motors)};

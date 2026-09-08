@@ -37,7 +37,7 @@ public:
 	{
 		dt = fminf(fmaxf(dt, 0.001f), 0.1f);
 		_output.candidate_valid = _output.reentry_ready = false;
-		_output.fallback_reason = 0;
+		if (_output.state == DISABLED || _output.state == MONITORING) { _output.fallback_reason = 0; }
 		float norm = 0.f;
 		for (float v : in.q) { norm += v*v; }
 		bool finite = isfinite(norm) && norm > 0.9f && norm < 1.1f && isfinite(in.normal_thrust);
@@ -54,6 +54,7 @@ public:
 			_vertical_integral = 0.f;
 			transition(DISTURBANCE_DETECTED, in.now);
 		}
+		const float tilt_cos = 1.f - 2.f * (in.q[1]*in.q[1] + in.q[2]*in.q[2]);
 		const bool recovering = _output.state != DISABLED && _output.state != MONITORING
 			&& _output.state != ABORTED && _output.state != FAILED;
 		if (recovering) {
@@ -64,10 +65,10 @@ public:
 				_output.fallback_reason = 2;
 				transition(FAILED, in.now);
 			} else if (in.now - _recovery_started > 20000000 && _output.state != EMERGENCY_LAND) {
-				transition(in.vertical_valid ? EMERGENCY_LAND : FAILED, in.now);
+				_output.fallback_reason = 4;
+				transition(in.vertical_valid && tilt_cos > 0.9f ? EMERGENCY_LAND : FAILED, in.now);
 			}
 		}
-		const float tilt_cos = 1.f - 2.f * (in.q[1]*in.q[1] + in.q[2]*in.q[2]);
 		const float yaw_norm = sqrtf(in.q[0]*in.q[0] + in.q[3]*in.q[3]);
 		_output.q[0] = yaw_norm > 0.01f ? in.q[0] / yaw_norm : 1.f;
 		_output.q[1] = _output.q[2] = 0.f;
@@ -89,7 +90,9 @@ public:
 		case ALTITUDE_STABILIZATION:
 			stable = rate_safe && attitude_safe && vertical_safe && fabsf(in.z - _altitude) < 0.5f; break;
 		case CONTROL_REENTRY:
-			stable = rate_safe && attitude_safe && vertical_safe && in.eligible;
+			stable = rate_safe && attitude_safe && vertical_safe && in.eligible
+				&& fabsf(in.normal_thrust - _output.thrust) < 0.2f;
+			for (unsigned a = 0; a < 3; ++a) { stable &= fabsf(in.normal_rates[a] - _output.rate[a]) < 0.5f; }
 			_output.reentry_ready = stable;
 			break;
 		default: break;
@@ -110,6 +113,9 @@ public:
 				break;
 			default: break;
 			}
+		}
+		if (_output.state == EMERGENCY_LAND && (!rate_safe || tilt_cos < 0.85f)) {
+			_output.fallback_reason = 8; transition(FAILED, in.now);
 		}
 		if ((_output.state == ALTITUDE_STABILIZATION || _output.state == VERTICAL_SPEED_RECOVERY || _output.state == CONTROL_REENTRY)
 		    && (!rate_safe || tilt_cos < 0.85f)) { transition(RATE_DAMPING, in.now); }

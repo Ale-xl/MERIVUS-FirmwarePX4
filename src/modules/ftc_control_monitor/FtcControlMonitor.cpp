@@ -282,8 +282,13 @@ void FtcControlMonitor::Run()
 
 int FtcControlMonitor::print_status()
 {
+	ftc_allocation_status_s allocation{};
+	_allocation_sub.copy(&allocation);
+	PX4_INFO("actual allocation: active %u state %u fallback 0x%lx age %.2f s", allocation.active,
+		(unsigned)allocation.state, (unsigned long)allocation.fallback_reason,
+		allocation.timestamp ? (double)((hrt_absolute_time() - allocation.timestamp) * 1e-6f) : -1.);
 	PX4_INFO("shadow: %s, takeover interface: %s, matrix: %s, authority state: %u",
-		 _param_ftc_ca_shadow.get() ? "enabled" : "disabled", _param_ftc_ca_en.get() ? "requested/inactive" : "disabled",
+		 _param_ftc_ca_shadow.get() ? "enabled" : "disabled", _param_ftc_ca_en.get() ? "enabled/gated" : "disabled",
 		 _matrix_valid ? "valid" : "invalid", (unsigned)_last_authority.state);
 	PX4_INFO("authority R/P/Y/T %.2f/%.2f/%.2f/%.2f, headroom %.2f, saturation 0x%04x",
 		 (double)_last_authority.roll_authority, (double)_last_authority.pitch_authority,

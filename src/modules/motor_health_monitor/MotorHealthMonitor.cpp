@@ -132,7 +132,8 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 				      && _esc_status.esc[i].esc_rpm < 100;
 		}
 
-		float evidence = degradation * status.confidence[i];
+		const float degradation_scale = fmaxf(1.f - _param_ftc_hlth_min.get(), 0.05f);
+		float evidence = math::constrain(degradation / degradation_scale, 0.f, 1.f) * status.confidence[i];
 		evidence = fmaxf(evidence, (!esc_online || esc_failed || motor_stuck || rpm_stopped) ? 1.f : 0.f);
 		_fault_probability_lpf[i] += probability_alpha * (evidence - _fault_probability_lpf[i]);
 		status.fault_probability[i] = math::constrain(_fault_probability_lpf[i], 0.f, 1.f);
@@ -146,7 +147,7 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 			   : ((status.degraded_mask & (1u << i)) ? motor_health_status_s::DEGRADED : motor_health_status_s::VALID_HEALTHY));
 
 		if (status.fault_probability[i] < _param_ftc_fault_p.get()) {
-			if (status.vibration_score > 1.f && degradation < 0.1f) {
+			if (status.model_valid && status.vibration_score > 1.f && degradation < 0.1f) {
 				status.fault_type[i] = motor_health_status_s::FAULT_MECHANICAL_IMBALANCE;
 			}
 
@@ -188,7 +189,8 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 			status.fault_type[i] = motor_health_status_s::FAULT_MODEL_MISMATCH;
 			status.fault_probability[i] = math::constrain(status.model_residual
 						      / fmaxf(_param_ftc_res_thr.get(), 0.01f), 0.f, 1.f);
-			status.fault_confidence[i] = status.excitation;
+			status.fault_confidence[i] = 0.f;
+			status.diagnosis_state[i] = motor_health_status_s::UNKNOWN;
 		}
 	}
 }
@@ -274,7 +276,9 @@ void MotorHealthMonitor::Run()
 	if (_parameter_update_sub.updated()) {
 		parameter_update_s parameter_update{};
 		_parameter_update_sub.copy(&parameter_update);
+		const float delay = _param_ftc_est_delay.get(), lpf = _param_ftc_lpf_tc.get();
 		updateParams();
+		if (delay != _param_ftc_est_delay.get() || lpf != _param_ftc_lpf_tc.get()) { resetEstimator(); }
 	}
 
 	_vehicle_status_sub.update(&_vehicle_status);

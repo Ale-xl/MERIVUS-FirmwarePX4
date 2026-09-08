@@ -26,8 +26,10 @@ public:
 		if (!input.mode_matches) { reason |= MODE_CHANGED; }
 		for (unsigned i = 0; i < 4; ++i) {
 			if (!isfinite(input.candidate[i]) || !isfinite(input.normal[i])) { reason |= INVALID; }
+			if (i < 3 && fabsf(input.candidate[i]) > 6.f) { reason |= INVALID; }
 		}
-		if (!isfinite(input.requested_weight)) { reason |= INVALID; }
+		if (!isfinite(input.requested_weight) || input.requested_weight < 0.f || input.requested_weight > 1.f
+		    || input.candidate[3] > 0.f || input.candidate[3] < -1.f) { reason |= INVALID; }
 		const float target = reason == 0 ? clamp(input.requested_weight, 0.f, 1.f) : 0.f;
 		dt = clamp(dt, 0.f, 0.02f);
 		if (input.hard_exit || !fresh(input.now, input.normal_timestamp)) { weight = 0.f; }
