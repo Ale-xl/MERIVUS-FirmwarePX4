@@ -6,6 +6,7 @@
 #define MERIVUS_FTC_CONTROL_STATUS_HPP
 
 #include "MerivusFtcTelemetry.hpp"
+#include <uORB/topics/ftc_arbitration_status.h>
 
 #include <uORB/topics/ftc_allocation_shadow.h>
 #include <uORB/topics/ftc_control_authority.h>
@@ -35,6 +36,7 @@ private:
 	uORB::Subscription _matrix_sub{ORB_ID(ftc_effectiveness_matrix)};
 	uORB::Subscription _shadow_sub{ORB_ID(ftc_allocation_shadow)};
 	uORB::Subscription _recovery_sub{ORB_ID(ftc_recovery_status)};
+	uORB::Subscription _arbitration_sub{ORB_ID(ftc_arbitration_status)};
 	uORB::Subscription _system_sub{ORB_ID(ftc_system_status)};
 	ftc_control_authority_s _authority{};
 	ftc_effectiveness_matrix_s _matrix{};
@@ -61,9 +63,7 @@ private:
 		msg.system_state = _system.state;
 		msg.authority_state = _authority.state;
 		msg.recovery_state = _recovery.state;
-		msg.control_mode = !_system.monitor_enabled ? MERIVUS_FTC_CONTROL_MODE_DISABLED
-			: (_recovery.candidate_valid ? MERIVUS_FTC_CONTROL_MODE_CANDIDATE
-			   : (_shadow.valid ? MERIVUS_FTC_CONTROL_MODE_SHADOW : MERIVUS_FTC_CONTROL_MODE_OBSERVE));
+		msg.control_mode = _system.mode;
 		msg.flags = (_system.monitor_enabled ? MERIVUS_FTC_CONTROL_FLAGS_MONITOR_ENABLED : 0)
 			| (_authority.valid ? MERIVUS_FTC_CONTROL_FLAGS_AUTHORITY_VALID : 0)
 			| (_matrix.valid ? MERIVUS_FTC_CONTROL_FLAGS_MATRIX_VALID : 0)
@@ -80,6 +80,20 @@ private:
 		msg.system_confidence_pct = merivus_ftc_telemetry::encode_percentage(_system.system_confidence, _system.timestamp > 0);
 		msg.recovery_progress_pct = merivus_ftc_telemetry::encode_percentage(_recovery.progress, _recovery.candidate_valid);
 
+		ftc_arbitration_status_s arbitration{};
+		_arbitration_sub.copy(&arbitration);
+		memcpy(msg.positive_authority, _authority.positive_authority, sizeof(msg.positive_authority));
+		memcpy(msg.negative_authority, _authority.negative_authority, sizeof(msg.negative_authority));
+		msg.thrust_up = _authority.thrust_up;
+		msg.thrust_down = _authority.thrust_down;
+		msg.reachable_residual = _authority.reachable_residual;
+		msg.allocation_fallback = _system.allocation_fallback;
+		msg.recovery_fallback = _system.recovery_fallback;
+		msg.allocation_active = _system.allocation_active;
+		msg.recovery_active = _system.recovery_active;
+		msg.arbitration_weight = arbitration.weight;
+		msg.reentry_weight = _recovery.reentry_weight;
+		if (_system.intervention_enabled) { msg.flags |= MERIVUS_FTC_CONTROL_FLAGS_ACTIVE_COMMAND_PATH; }
 		mavlink_msg_merivus_ftc_control_status_send_struct(_mavlink->get_channel(), &msg);
 		return true;
 	}

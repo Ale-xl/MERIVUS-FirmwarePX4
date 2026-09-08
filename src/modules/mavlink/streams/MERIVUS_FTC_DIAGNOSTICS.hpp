@@ -84,6 +84,19 @@ private:
 		msg.simulation_applied_effectiveness_pct = merivus_ftc_telemetry::encode_percentage(
 				_simulation.applied_effectiveness, _simulation.enabled);
 
+		msg.condition_number = _model.condition_number;
+		msg.rigid_body_activity = _model.rigid_body_activity;
+		msg.model_prediction_residual = _model.model_prediction_residual;
+		msg.update_count = _model.update_count;
+		msg.reset_count = _model.reset_count;
+		msg.mass = _model.mass;
+		memcpy(msg.inertia, _model.inertia, sizeof(msg.inertia));
+		memcpy(msg.cg_offset, _model.cg_offset, sizeof(msg.cg_offset));
+		msg.mass_state = _model.mass_state;
+		msg.inertia_state = _model.inertia_state;
+		msg.cg_state = _model.cg_state;
+		msg.estimator_flags = (_model.update_allowed ? 1 : 0) | (_model.saturated ? 2 : 0)
+			| (_model.authority_limited ? 4 : 0) | (_model.timing_aligned ? 8 : 0);
 		mavlink_msg_merivus_ftc_diagnostics_send_struct(_mavlink->get_channel(), &msg);
 		return true;
 	}

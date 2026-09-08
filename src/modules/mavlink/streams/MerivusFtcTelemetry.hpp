@@ -26,7 +26,7 @@
 
 namespace merivus_ftc_telemetry
 {
-static constexpr uint8_t ProtocolVersion = 1;
+static constexpr uint8_t ProtocolVersion = 2;
 static constexpr uint8_t PercentageUnavailable = UINT8_MAX;
 static constexpr uint8_t MaxMotors = 12;
 

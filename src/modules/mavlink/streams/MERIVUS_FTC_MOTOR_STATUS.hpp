@@ -61,12 +61,19 @@ private:
 		for (uint8_t i = 0; i < merivus_ftc_telemetry::MaxMotors; ++i) {
 			const bool available = i < msg.motor_count && motor.state == motor_health_status_s::STATE_VALID;
 			msg.health_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.health[i], available);
-			msg.effectiveness_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.effectiveness[i], available);
+			msg.effectiveness_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.effectiveness[i], i < msg.motor_count && _model.baseline_learned);
 			msg.fault_probability_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.fault_probability[i], available);
-			msg.confidence_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.confidence[i], available);
-			msg.fault_type[i] = available ? motor.fault_type[i] : static_cast<uint8_t>(MERIVUS_FTC_FAULT_NONE);
+			msg.confidence_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.confidence[i], i < msg.motor_count);
+			msg.fault_type[i] = motor.fault_type[i];
+			msg.diagnosis_state[i] = motor.diagnosis_state[i];
+			msg.estimate_uncertainty[i] = _model.estimate_uncertainty[i];
 		}
 
+		msg.last_valid_timestamp = _model.last_valid_timestamp;
+		msg.estimate_age = _model.estimate_age;
+		msg.estimator_state = _model.state;
+		msg.baseline_learned = _model.baseline_learned;
+		msg.current_observable = _model.current_observable;
 		mavlink_msg_merivus_ftc_motor_status_send_struct(_mavlink->get_channel(), &msg);
 		return true;
 	}

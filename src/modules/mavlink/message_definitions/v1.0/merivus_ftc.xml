@@ -13,6 +13,13 @@
       <entry value="5" name="MERIVUS_FTC_SYSTEM_STATE_RECOVERY_ACTIVE"/>
       <entry value="6" name="MERIVUS_FTC_SYSTEM_STATE_EMERGENCY_LAND"/>
       <entry value="7" name="MERIVUS_FTC_SYSTEM_STATE_FAILED"/>
+      <entry value="8" name="MERIVUS_FTC_SYSTEM_STATE_INITIALIZING"/>
+      <entry value="9" name="MERIVUS_FTC_SYSTEM_STATE_CALIBRATING"/>
+      <entry value="10" name="MERIVUS_FTC_SYSTEM_STATE_READY"/>
+      <entry value="11" name="MERIVUS_FTC_SYSTEM_STATE_UNOBSERVABLE"/>
+      <entry value="12" name="MERIVUS_FTC_SYSTEM_STATE_SHADOW"/>
+      <entry value="13" name="MERIVUS_FTC_SYSTEM_STATE_RECOVERY_CANDIDATE"/>
+      <entry value="14" name="MERIVUS_FTC_SYSTEM_STATE_ACTIVE_ALLOCATION"/>
     </enum>
     <enum name="MERIVUS_FTC_MONITOR_STATE">
       <description>Motor-health observer state.</description>
@@ -79,6 +86,7 @@
       <entry value="8" name="MERIVUS_FTC_RECOVERY_STATE_EMERGENCY_LAND"/>
       <entry value="9" name="MERIVUS_FTC_RECOVERY_STATE_ABORTED"/>
       <entry value="10" name="MERIVUS_FTC_RECOVERY_STATE_FAILED"/>
+      <entry value="11" name="MERIVUS_FTC_RECOVERY_STATE_VERTICAL_SPEED_RECOVERY"/>
     </enum>
     <enum name="MERIVUS_FTC_MOTOR_FLAGS" bitmask="true">
       <description>Validity and source flags for MERIVUS_FTC_MOTOR_STATUS.</description>
@@ -134,6 +142,14 @@
       <field type="uint8_t" name="motor_count">Number of valid motor entries, maximum 12.</field>
       <field type="uint8_t" name="flags" enum="MERIVUS_FTC_MOTOR_FLAGS">Validity and source flags.</field>
       <field type="uint8_t" name="model_quality_pct">Rigid-body model quality using the percentage scaling above.</field>
+      <extensions/>
+      <field type="uint64_t" name="last_valid_timestamp">Last accepted valid parameter update timestamp in microseconds.</field>
+      <field type="float" name="estimate_age">Seconds since last parameter update; infinity before first update.</field>
+      <field type="float[12]" name="estimate_uncertainty">One sigma relative-effectiveness uncertainty.</field>
+      <field type="uint8_t[12]" name="diagnosis_state">0 no evidence, 1 unknown, 2 unobservable, 3 valid healthy, 4 degraded, 5 failed.</field>
+      <field type="uint8_t" name="estimator_state">0 uninitialized, 1 calibrating, 2 baseline learned, 3 observable, 4 temporarily unobservable, 5 valid, 6 stale, 7 invalid.</field>
+      <field type="uint8_t" name="baseline_learned">Healthy baseline was learned this session.</field>
+      <field type="uint8_t" name="current_observable">Current aligned sample supplies independent information.</field>
     </message>
     <message id="60001" name="MERIVUS_FTC_CONTROL_STATUS">
       <description>Control-authority and integration-stage summary. Percentage fields use 0..200 for 0..100 percent in 0.5 percent steps; 255 means unavailable.</description>
@@ -153,6 +169,18 @@
       <field type="uint8_t" name="actuator_headroom_pct">Remaining actuator headroom.</field>
       <field type="uint8_t" name="system_confidence_pct">Aggregated FTC confidence.</field>
       <field type="uint8_t" name="recovery_progress_pct">Recovery-candidate state progress.</field>
+      <extensions/>
+      <field type="float[3]" name="positive_authority">Positive roll pitch yaw reachable increments in nominal matrix units.</field>
+      <field type="float[3]" name="negative_authority">Negative roll pitch yaw reachable increments in nominal matrix units.</field>
+      <field type="float" name="thrust_up">Reachable upward thrust increment.</field>
+      <field type="float" name="thrust_down">Reachable downward thrust increment.</field>
+      <field type="float" name="reachable_residual">Shadow allocation prediction residual norm.</field>
+      <field type="uint32_t" name="allocation_fallback">Active allocator fallback reason mask.</field>
+      <field type="uint32_t" name="recovery_fallback">Recovery arbitration fallback reason mask.</field>
+      <field type="float" name="arbitration_weight">Actual recovery input ownership weight.</field>
+      <field type="float" name="reentry_weight">Requested recovery ownership during reentry.</field>
+      <field type="uint8_t" name="allocation_active">Dynamic matrix differs from nominal.</field>
+      <field type="uint8_t" name="recovery_active">Recovery input arbitration is applied.</field>
     </message>
     <message id="60002" name="MERIVUS_FTC_EXTREME_STATUS">
       <description>Impact, loss-of-control and recovery-candidate event summary. Percentage fields use 0..200 for 0..100 percent in 0.5 percent steps; 255 means unavailable.</description>
@@ -193,6 +221,19 @@
       <field type="uint8_t" name="simulation_motor_index">Injected SITL motor index.</field>
       <field type="uint8_t" name="simulation_target_effectiveness_pct">Requested SITL effectiveness using the compact percentage scaling.</field>
       <field type="uint8_t" name="simulation_applied_effectiveness_pct">Applied SITL effectiveness using the compact percentage scaling.</field>
+      <extensions/>
+      <field type="float" name="condition_number">Regressor information matrix condition number.</field>
+      <field type="float" name="rigid_body_activity">Inertia based torque activity norm, not a prediction error.</field>
+      <field type="float" name="model_prediction_residual">Norm of predicted minus measured filtered angular response.</field>
+      <field type="uint32_t" name="update_count">Accepted parameter updates.</field>
+      <field type="uint32_t" name="reset_count">Estimator reset generation.</field>
+      <field type="float" name="mass">Observe-only mass in kg; unavailable without calibrated thrust scale.</field>
+      <field type="float[3]" name="inertia">Configured inertia; never an online valid estimate unless indicated.</field>
+      <field type="float[3]" name="cg_offset">Observe-only CG in metres; NaN when not estimated.</field>
+      <field type="uint8_t" name="mass_state">0 not implemented, 1 not observable, 2 available.</field>
+      <field type="uint8_t" name="inertia_state">0 not implemented, 1 not observable, 2 available.</field>
+      <field type="uint8_t" name="cg_state">0 not implemented, 1 not observable, 2 available.</field>
+      <field type="uint8_t" name="estimator_flags">Bit 0 update allowed, 1 saturated, 2 authority limited, 3 timing aligned.</field>
     </message>
   </messages>
 </mavlink>

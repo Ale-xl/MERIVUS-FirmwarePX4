@@ -60,8 +60,8 @@ def main() -> int:
     require(not missing_topics, f"未覆盖 uORB 主题：{', '.join(missing_topics)}")
 
     control_text = (STREAM_ROOT / "MERIVUS_FTC_CONTROL_STATUS.hpp").read_text(encoding="utf-8")
-    require("MERIVUS_FTC_CONTROL_FLAGS_ACTIVE_COMMAND_PATH" not in control_text, "当前传输层不得声明 ACTIVE 命令路径")
-    require("MERIVUS_FTC_CONTROL_MODE_ACTIVE" not in control_text, "当前传输层不得报告 ACTIVE 模式")
+    require("if (_system.intervention_enabled)" in control_text, "ACTIVE 必须来自实际仲裁反馈")
+    require("msg.control_mode = _system.mode" in control_text, "模式必须由 Supervisor 统一发布")
 
     main_text = (ROOT / "src/modules/mavlink/mavlink_main.cpp").read_text(encoding="utf-8")
     for stream_name, rate in {
