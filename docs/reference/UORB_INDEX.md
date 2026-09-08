@@ -2,7 +2,7 @@
 
 ## FTC 消息
 
-所有 `.msg` 位于 `msg/`，并由 `msg/CMakeLists.txt` 进入 uORB 生成。下表中的 logger 订阅来自 `src/modules/logger/logged_topics.cpp`，均为可选日志 topic。
+所有 `.msg` 位于 `msg/`，并由 `msg/CMakeLists.txt` 进入 uORB 生成。下表中的 logger 订阅来自 `src/modules/logger/logged_topics.cpp`。FTC topic 使用固定订阅：即使 logger 启动时发布者尚未出现，也会保留并周期重试，避免晚启动模块的诊断缺失。
 
 | Topic | Publisher | Subscriber | 用途与关键字段 | 日志 | 进入主控制 |
 | --- | --- | --- | --- | --- | --- |

@@ -155,6 +155,9 @@ void FtcRecovery::Run()
 	status.state = _state;
 	status.intervention_enabled = false; // no arbitration hook exists; FTC_REC_ACT is intentionally inert
 	const bool armed = vehicle_status.arming_state == vehicle_status_s::ARMING_STATE_ARMED;
+	const bool session_state_fresh = vehicle_status.timestamp != 0 && land.timestamp != 0
+					 && now >= vehicle_status.timestamp && now - vehicle_status.timestamp < 1_s
+					 && now >= land.timestamp && now - land.timestamp < 1_s;
 	const bool state_fresh = attitude.timestamp != 0 && angular_velocity.timestamp != 0
 				 && now >= attitude.timestamp && now - attitude.timestamp < 200_ms
 				 && now >= angular_velocity.timestamp && now - angular_velocity.timestamp < 200_ms;
@@ -208,13 +211,20 @@ void FtcRecovery::Run()
 		status.trigger_mask |= TRIGGER_AUTHORITY;
 	}
 
+	const bool safe_new_session = session_state_fresh && !armed && land.landed && status.trigger_mask == 0;
+	const bool terminal_state = _state == ftc_recovery_status_s::ABORTED
+				    || _state == ftc_recovery_status_s::FAILED;
+
 	if (!_param_ftc_rec_en.get()) {
 		transition(ftc_recovery_status_s::DISABLED, now);
 
-	} else if (_state == ftc_recovery_status_s::DISABLED) {
+	} else if (_state == ftc_recovery_status_s::DISABLED && (safe_new_session || status.eligible)) {
 		transition(ftc_recovery_status_s::MONITORING, now);
 
-	} else if (_state == ftc_recovery_status_s::MONITORING && status.trigger_mask != 0) {
+	} else if (terminal_state && safe_new_session) {
+		transition(ftc_recovery_status_s::MONITORING, now);
+
+	} else if (_state == ftc_recovery_status_s::MONITORING && armed && !land.landed && status.trigger_mask != 0) {
 		transition(ftc_recovery_status_s::DISTURBANCE_DETECTED, now);
 
 	} else if (_state == ftc_recovery_status_s::DISTURBANCE_DETECTED) {
