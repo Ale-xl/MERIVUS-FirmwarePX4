@@ -37,7 +37,7 @@ inline uint8_t encode_percentage(float value, bool valid = true)
 	}
 
 	const float constrained = value < 0.f ? 0.f : (value > 1.f ? 1.f : value);
-	return static_cast<uint8_t>(std::lround(constrained * 200.f));
+	return static_cast<uint8_t>(lroundf(constrained * 200.f));
 }
 }
 

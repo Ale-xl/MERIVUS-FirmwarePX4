@@ -12,6 +12,8 @@ px4_add_module(
 	SRCS
 		FtcControlMonitor.cpp
 		FtcControlMonitor.hpp
+	INCLUDES
+		${PX4_SOURCE_DIR}/src/modules/control_allocator
 	DEPENDS
 		ControlAllocation
 		px4_work_queue

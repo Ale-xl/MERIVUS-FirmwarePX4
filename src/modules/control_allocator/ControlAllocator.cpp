@@ -168,9 +168,6 @@ ControlAllocator::update_allocation_method(bool force)
 		AllocationMethod desired_methods[ActuatorEffectiveness::MAX_NUM_MATRICES];
 		_actuator_effectiveness->getDesiredAllocationMethod(desired_methods);
 
-		bool normalize_rpy[ActuatorEffectiveness::MAX_NUM_MATRICES];
-		_actuator_effectiveness->getNormalizeRPY(normalize_rpy);
-
 		bool normalize_rpy[ActuatorEffectiveness::MAX_NUM_MATRICES] {};
 		_actuator_effectiveness->getNormalizeRPY(normalize_rpy);
 
@@ -472,6 +469,8 @@ ControlAllocator::update_effectiveness_matrix_if_needed(EffectivenessUpdateReaso
 		ActuatorEffectiveness::ActuatorVector minimum[ActuatorEffectiveness::MAX_NUM_MATRICES];
 		ActuatorEffectiveness::ActuatorVector maximum[ActuatorEffectiveness::MAX_NUM_MATRICES];
 		ActuatorEffectiveness::ActuatorVector slew_rate[ActuatorEffectiveness::MAX_NUM_MATRICES];
+		bool normalize_rpy[ActuatorEffectiveness::MAX_NUM_MATRICES] {};
+		_actuator_effectiveness->getNormalizeRPY(normalize_rpy);
 		int actuator_idx = 0;
 		int actuator_idx_matrix[ActuatorEffectiveness::MAX_NUM_MATRICES] {};
 

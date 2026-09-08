@@ -64,7 +64,7 @@ private:
 			msg.effectiveness_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.effectiveness[i], available);
 			msg.fault_probability_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.fault_probability[i], available);
 			msg.confidence_pct[i] = merivus_ftc_telemetry::encode_percentage(motor.confidence[i], available);
-			msg.fault_type[i] = available ? motor.fault_type[i] : MERIVUS_FTC_FAULT_NONE;
+			msg.fault_type[i] = available ? motor.fault_type[i] : static_cast<uint8_t>(MERIVUS_FTC_FAULT_NONE);
 		}
 
 		mavlink_msg_merivus_ftc_motor_status_send_struct(_mavlink->get_channel(), &msg);

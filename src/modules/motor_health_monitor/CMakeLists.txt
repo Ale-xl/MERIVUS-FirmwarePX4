@@ -22,5 +22,6 @@ px4_add_module(
 px4_add_unit_gtest(
 	SRC
 		MotorEffectivenessEstimatorTest.cpp
+	EXTRA_SRCS
 		MotorEffectivenessEstimator.cpp
 )

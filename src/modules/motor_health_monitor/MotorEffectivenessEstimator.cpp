@@ -28,7 +28,7 @@ void MotorEffectivenessEstimator::reset()
 	memset(_control_mean, 0, sizeof(_control_mean));
 	memset(_control_variance, 0, sizeof(_control_variance));
 	memset(_filtered_acceleration, 0, sizeof(_filtered_acceleration));
-	memset(&_output, 0, sizeof(_output));
+	_output = {};
 
 	for (uint8_t i = 0; i < MAX_MOTORS; ++i) {
 		_covariance[i][i] = 20.f;
