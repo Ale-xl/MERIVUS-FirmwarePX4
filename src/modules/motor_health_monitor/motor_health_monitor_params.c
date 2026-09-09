@@ -218,9 +218,9 @@ PARAM_DEFINE_FLOAT(FTC_FAULT_VIB, 8.0f);
 PARAM_DEFINE_FLOAT(FTC_FAULT_EXT, 0.70f);
 
 /**
- * Enable future control allocator takeover
+ * Enable experimental adaptive control allocation
  *
- * Reserved and inactive in this implementation.
+ * Gated active control path. Default off; SITL/HITL/flight validation pending.
  *
  * @boolean
  * @group Fault Tolerant Control
@@ -316,7 +316,7 @@ PARAM_DEFINE_INT32(FTC_REC_EN, 0);
 /**
  * Enable connection of recovery candidates to the flight-control pipeline
  *
- * Reserved and inactive in this implementation.
+ * Gated active control path. Default off; SITL/HITL/flight validation pending.
  *
  * @boolean
  * @group Fault Tolerant Control

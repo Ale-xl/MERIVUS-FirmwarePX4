@@ -84,7 +84,7 @@ private:
 	float _previous_effectiveness[MotorEffectivenessEstimator::MAX_MOTORS] {};
 	float _filtered_acceleration_magnitude{0.f};
 	bool _acceleration_filter_initialized{false};
-	hrt_abstime _last_run{0};
+	hrt_abstime _last_run{0}, _last_response_sample{0};
 	hrt_abstime _last_disabled_publish{0};
 	bool _was_armed{false};
 	bool _was_landed{true};

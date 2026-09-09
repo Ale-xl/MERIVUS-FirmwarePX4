@@ -58,6 +58,7 @@ void MotorHealthMonitor::resetEstimator()
 {
 	_estimator.reset();
 	_alignment.reset();
+	_last_response_sample = 0;
 	_rigid_body.reset();
 	memset(_degraded_start, 0, sizeof(_degraded_start));
 	memset(_failed_start, 0, sizeof(_failed_start));
@@ -142,7 +143,8 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 					     : status.confidence[i] * 0.8f;
 		status.fault_persistence[i] = _degraded_start[i] == 0 ? 0.f : (now - _degraded_start[i]) * 1e-6f;
 		status.fault_type[i] = motor_health_status_s::FAULT_NONE;
-		status.diagnosis_state[i] = !status.model_valid ? motor_health_status_s::UNOBSERVABLE
+		status.diagnosis_state[i] = !status.model_valid
+			? (_estimator.output().baseline_learned ? motor_health_status_s::UNOBSERVABLE : motor_health_status_s::NO_EVIDENCE)
 			: ((status.failed_mask & (1u << i)) ? motor_health_status_s::FAILED
 			   : ((status.degraded_mask & (1u << i)) ? motor_health_status_s::DEGRADED : motor_health_status_s::VALID_HEALTHY));
 
@@ -157,6 +159,7 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 		++localized_faults;
 		if (!status.model_valid) { status.diagnosis_state[i] = motor_health_status_s::UNKNOWN; }
 
+		if (!esc_online || esc_failed || motor_stuck || rpm_stopped) { status.diagnosis_state[i] = motor_health_status_s::FAILED; }
 		if (!esc_online || esc_failed) {
 			status.fault_type[i] = motor_health_status_s::FAULT_ESC_OR_POWER_FAILURE;
 
@@ -278,7 +281,7 @@ void MotorHealthMonitor::Run()
 		_parameter_update_sub.copy(&parameter_update);
 		const float delay = _param_ftc_est_delay.get(), lpf = _param_ftc_lpf_tc.get();
 		updateParams();
-		if (delay != _param_ftc_est_delay.get() || lpf != _param_ftc_lpf_tc.get()) { resetEstimator(); }
+		if (fabsf(delay - _param_ftc_est_delay.get()) > 1e-6f || fabsf(lpf - _param_ftc_lpf_tc.get()) > 1e-6f) { resetEstimator(); }
 	}
 
 	_vehicle_status_sub.update(&_vehicle_status);
@@ -342,8 +345,10 @@ void MotorHealthMonitor::Run()
 	_estimator_input = {};
 	_estimator_input.timestamp = now;
 	_estimator_input.motor_count = motor_count;
-	_estimator_input.aligned = _alignment.sample(angular_velocity.timestamp_sample,
+	_estimator_input.aligned = angular_velocity.timestamp_sample != _last_response_sample
+		&& _alignment.sample(angular_velocity.timestamp_sample,
 		static_cast<uint32_t>(_param_ftc_est_delay.get() * 1e6f), _estimator_input.control);
+	_last_response_sample = angular_velocity.timestamp_sample;
 	const bool matrix_valid = _matrix.valid && _matrix.matrix_index == 0 && _matrix.num_motors == motor_count
 		&& _matrix.num_actuators == motor_count && _matrix.num_axes == 6;
 	const bool allocation_fresh = allocation.timestamp && now >= allocation.timestamp && now - allocation.timestamp < 200_ms;
@@ -429,7 +434,8 @@ void MotorHealthMonitor::Run()
 		status.fault_confidence[i] = 0.f;
 		status.fault_persistence[i] = 0.f;
 		status.fault_type[i] = motor_health_status_s::FAULT_NONE;
-		status.diagnosis_state[i] = !status.model_valid ? motor_health_status_s::UNOBSERVABLE
+		status.diagnosis_state[i] = !status.model_valid
+			? (_estimator.output().baseline_learned ? motor_health_status_s::UNOBSERVABLE : motor_health_status_s::NO_EVIDENCE)
 			: ((status.failed_mask & (1u << i)) ? motor_health_status_s::FAILED
 			   : ((status.degraded_mask & (1u << i)) ? motor_health_status_s::DEGRADED : motor_health_status_s::VALID_HEALTHY));
 	}
