@@ -1,7 +1,5 @@
-# FTC Supervisor
+# 状态、遥测和日志
 
-状态：`IMPLEMENTED_UNVERIFIED`。
+当前契约统一见 [FTC 软件契约](../architecture/FTC_ARCHITECTURE.md)。本页不维护第二份算法或安全门定义。
 
-`ftc_supervisor` 聚合 motor health、model、control authority、extreme state 和 recovery status，发布唯一顶层 `ftc_system_status`。状态为 DISABLED、NORMAL、DEGRADED、FAULT_CONFIRMED、RECOVERY_READY、RECOVERY_ACTIVE、EMERGENCY_LAND、FAILED，并附 reason mask、关键有效位和 system confidence。
-
-Supervisor 只统一事实和状态，不拥有 actuator、flight mode 或 failsafe 权限。当前 `intervention_enabled` 始终为 false，避免保留参数被误解为已经接管。
+阶段性实现及验证证据见 [阶段总结](../testing/FTC_SOFTWARE_STAGE_REPORT.md)。主动路径为 `IMPLEMENTED_UNVERIFIED`，默认关闭。

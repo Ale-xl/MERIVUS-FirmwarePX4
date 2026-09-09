@@ -1,6 +1,6 @@
 # MERIVUS FirmwarePX4 工程约定
 
-本仓库是基于 PX4 v1.14 源码快照维护的 MERIVUS 飞控产品仓库。主要目标为 `px4_fmu-v6c_default` 与 `px4_sitl_default`；产品能力包括 FMUv6C/V6C22 适配、Hyper982/HyperLte 配置、`swarm_node`，以及默认关闭的实验性 FTC 观察链。
+本仓库是基于 PX4 v1.14 源码快照维护的 MERIVUS 飞控产品仓库。主要目标为 `px4_fmu-v6c_default` 与 `px4_sitl_default`；产品能力包括 FMUv6C/V6C22 适配、Hyper982/HyperLte 配置、`swarm_node`，以及默认关闭的实验性 FTC 软件链。
 
 ## 开始工作前
 
@@ -13,8 +13,8 @@
 
 - `src/modules/ekf2`、`mc_att_control`、`mc_rate_control`、`mc_pos_control`、`commander`、`flight_mode_manager` 是 PX4 成熟控制与安全核心，不因整理任务改动。
 - `src/modules/control_allocator`、`src/modules/mavlink`、`boards/px4/fmu-v6c`、`ROMFS/px4fmu_common/init.d` 的变更会跨控制、通信或硬件边界，必须执行针对性影响分析和相应级别验证。
-- `src/modules/motor_health_monitor` 与 `src/modules/ftc_*` 为实验性 FTC 模块。当前只允许 `OBSERVE`、`SHADOW` 和断开的 `CANDIDATE` 输出；不得宣称已经实现主动容错接管。
-- `FTC_MON_EN`、`FTC_CA_SHADOW`、`FTC_IMPACT_EN`、`FTC_LOC_EN`、`FTC_REC_EN`、`FTC_SIM_EN` 等入口默认关闭；`FTC_CA_EN` 和 `FTC_REC_ACT` 当前没有真实控制接管路径。
+- `src/modules/motor_health_monitor` 与 `src/modules/ftc_*` 为实验性 FTC 模块。包含观察、影子、候选及门控主动分配/恢复软件路径。ACTIVE 默认关闭，未完成后续仿真/硬件验证时只能标记 `IMPLEMENTED_UNVERIFIED`。
+- `FTC_MON_EN`、`FTC_CA_SHADOW`、`FTC_IMPACT_EN`、`FTC_LOC_EN`、`FTC_REC_EN`、`FTC_SIM_EN` 等入口默认关闭；`FTC_CA_EN` 和 `FTC_REC_ACT` 已接入门控软件路径，默认必须为 0。
 
 ## 变更与验证
 

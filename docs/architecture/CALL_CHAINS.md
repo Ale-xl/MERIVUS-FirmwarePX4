@@ -42,7 +42,7 @@
 `FtcRecovery::Run` → eligibility/inhibit gates → `transition` → `generateCandidate` → `calculateLevelQuaternion` → `ftc_recovery_status`
 
 - 状态：RATE_DAMPING、THRUST_VECTOR_RECOVERY、ATTITUDE_RECOVERY、ALTITUDE_STABILIZATION、CONTROL_REENTRY、EMERGENCY_LAND 等。
-- 风险：候选未接入 setpoint owner；任何未来接管都需要 Commander/failsafe 仲裁与超时 fallback。
+- 风险：候选经 FtcRateInput 唯一仲裁接入 rate 输入；模式/failsafe 只读门与超时回退已实现，需端到端验证。
 
 ## 7. FTC 顶层状态
 

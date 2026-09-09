@@ -14,7 +14,7 @@
 | Active Control | 主动控制 | 真实写入控制 setpoint、allocator 或执行器链；当前 FTC 不具备 |
 | Intervention | 控制介入 | FTC 获得真实控制所有权并改变飞行行为；不能与 `intervention_enabled` 状态字段混淆 |
 | Loss of Control (LOC) | 失控 | 姿态/rate 跟踪、饱和、权限和动力健康共同表明无法维持期望运动的状态 |
-| Recovery | 恢复控制 | 从异常状态向可控状态返回的策略；当前只有断开的候选 |
+| Recovery | 恢复控制 | 从异常状态向可控状态返回的策略；包含候选与默认关闭的独占输入仲裁 |
 | Control Reentry | 控制重入 | 恢复候选结束后将所有权安全交还正常控制器的阶段；尚未实现仲裁 |
 | Hard Landing | 硬着陆 | 落地条件下的高冲击事件，与空中外部撞击分开分类 |
 | Residual | 残差 | 模型预测、目标 wrench 或候选输出与观测/需求之间的差异 |

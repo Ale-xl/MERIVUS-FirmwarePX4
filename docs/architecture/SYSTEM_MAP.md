@@ -49,7 +49,7 @@ MERIVUS
 | GNSS / RTK | Hyper982 通过 NMEA 输入定位与双天线航向配置 | GPS1、`src/drivers/gps`、`src/modules/sensors/vehicle_gps_position`、EKF2 | GNSS→EKF2/MAVLink | PX4 通用 GPS 栈 + MERIVUS 默认参数 | 配置合同已建立；本轮未复验设备 |
 | MAVLink / 4G | uORB 与地面站之间的命令、状态和遥测；HyperLte 透传 TELEM1 | `src/modules/mavlink`、`boards/.../rc.board_defaults` | 飞控↔GroundStation | PX4 原生 + MERIVUS 带宽/遥测修订 | `IMPLEMENTED_UNVERIFIED` |
 | Swarm | 1/2/6 机 PREPARE→COMMIT→RELEASE 事务、ABORT 与位置租约 | `src/modules/swarm_node`、`msg/SwarmCommand.msg`、相邻仓库 `GroundStation/custom/src/Swarm/SwarmController.*` | MAVLink↔swarm_node→Offboard/Commander | `MERIVUS_CUSTOM`，导入前来源 SHA 不完整 | `IMPLEMENTED_UNVERIFIED`；Mock/SITL 阶段 |
-| FTC | 观察电机效能、故障、权限和极端状态，生成断开的恢复候选 | `src/modules/motor_health_monitor`、`src/modules/ftc_*` | 控制/传感 uORB→FTC topics→logger | `EXPERIMENTAL`、`MERIVUS_CUSTOM`；allocator/simulator/logger 为集中修改 | 见 [FTC_ARCHITECTURE.md](FTC_ARCHITECTURE.md) |
+| FTC | 观察电机效能、故障、权限和极端状态，生成恢复候选，并经门控核心接口实现主动分配/恢复 | `src/modules/motor_health_monitor`、`src/modules/ftc_*` | 控制/传感 uORB→FTC topics→logger | `EXPERIMENTAL`、`MERIVUS_CUSTOM`；allocator/simulator/logger 为集中修改 | 见 [FTC_ARCHITECTURE.md](FTC_ARCHITECTURE.md) |
 | Logging | 记录 PX4 与可选 FTC uORB topic | `src/modules/logger` | 全栈→ULog→离线分析 | PX4 原生 + FTC topic 列表修改 | topic 已接入源码，尚无实际 ULog 证据 |
 | Simulation | SITL 传感器/执行器桥接与 FTC 电机效能注入 | `boards/px4/sitl`、`src/modules/simulation/simulator_mavlink` | 仿真器↔uORB | PX4 原生 + `EXPERIMENTAL` hook | 注入实现未完成 SITL 验证 |
 | Build / CI | 固件、SITL、元数据和可追溯产物 | `CMakeLists.txt`、`Tools`、`.github/workflows`、`Documentation/merivus` | 源码→产物→QGC | PX4 工具链 + MERIVUS CI | 构建流程有合同；本轮未构建 |

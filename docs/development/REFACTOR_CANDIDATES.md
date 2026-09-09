@@ -4,7 +4,7 @@
 
 | 优先级 | 问题与范围 | GitNexus/源码影响 | 风险 | 建议方向 |
 | --- | --- | --- | --- | --- |
-| P0 | `FTC_CA_EN`、`FTC_REC_ACT` 已存在但没有真实接管路径，容易被误解 | 参数、recovery/supervisor 状态、未来 allocator/Commander | HIGH | 在进入主动开发前写 ADR，定义唯一 setpoint owner、仲裁、fallback 和状态语义；未完成前继续强制 inactive |
+| P0 | `FTC_CA_EN`、`FTC_REC_ACT` 主动软件路径已实现，需后续验证 | 参数、recovery/supervisor 状态、未来 allocator/Commander | HIGH | 当前 owner、仲裁、fallback 见 FTC_ARCHITECTURE；后续验证前保持默认关闭 |
 | P0 | Swarm 协议常量在固件与 GroundStation 两仓分别维护 | `MavlinkReceiver`、`SwarmNode`、`GroundStation SwarmController`；uORB/MAVLink 跨图边界 | HIGH | 建立可版本化协议合同或生成源，覆盖版本、命令、session、mask 和 timeout；保持两端可审查差异 |
 | P1 | 全部 FTC 参数定义集中在 `motor_health_monitor_params.c`，但由五个模块和 simulator 使用 | 39 个参数、多个 `DEFINE_PARAMETERS`、参数元数据 | MEDIUM | 在不改名的前提下按长期责任拆分定义文件，确保只有一个定义源并做元数据检查 |
 | P1 | FTC hook 直接位于 `ControlAllocator`，未来主动能力可能继续扩大分叉 | allocator 4 个已解析上游符号 + uORB shadow consumers | HIGH | 主动控制设计确认后，优先形成单一、窄接口的 allocator extension；不要继续追加散落分支 |

@@ -30,7 +30,7 @@
 | FTC fault classification | L3 + L4 + L5 | L7/L9 标定 | `IMPLEMENTED_UNVERIFIED` |
 | FTC matrix shadow / authority | L3 + L4 + L5 | L6；只观察台架 L7 | `IMPLEMENTED_UNVERIFIED` |
 | FTC impact / LOC | L3 + L4 + L5 | L7/L8/L9 分场景标定 | `IMPLEMENTED_UNVERIFIED` |
-| FTC recovery candidate | L3 + L4 + L5 | L6 + L8；主动控制需 L9 | `IMPLEMENTED_UNVERIFIED`，未接管 |
+| FTC recovery candidate | L3 + L4 + L5 | L6 + L8；主动控制需 L9 | `IMPLEMENTED_UNVERIFIED`，主动路径默认关闭 |
 | FTC active allocation/recovery | L3 + L4 + L5 + L6 | L7 + L8 + L9 | `SKELETON` / 未实现，禁止实机启用 |
 | SITL FTC injection | L3 + L4 | 不适用实机 | `IMPLEMENTED_UNVERIFIED` |
 | ULog topic contract | L2 + L4 + L5 | 相关功能发布前完成 | 源码订阅存在，尚无实际 ULog |

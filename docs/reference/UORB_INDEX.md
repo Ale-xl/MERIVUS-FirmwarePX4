@@ -7,14 +7,17 @@
 | Topic | Publisher | Subscriber | 用途与关键字段 | 日志 | 进入主控制 |
 | --- | --- | --- | --- | --- | --- |
 | `motor_health_status` | `motor_health_monitor` | `ftc_control_monitor`、`ftc_extreme_state_monitor`、`ftc_recovery`、`ftc_supervisor` | `effectiveness/health/confidence`、fault、mask、residual | 20 ms | 否 |
-| `ftc_model_status` | `motor_health_monitor` | `ftc_supervisor` | 模型有效位、效能、质量/惯量/CG 字段 | 20 ms | 否 |
-| `ftc_effectiveness_matrix` | `control_allocator` | `ftc_control_monitor` | `B_nominal`、trim、linearization point、limits | 1000 ms | 只读来自主链；不反馈 |
+| `ftc_model_status` | `motor_health_monitor` | `ftc_supervisor`、`control_allocator` | 基线、可观测性、不确定度/年龄、模型有效位 | 20 ms | 门控动态分配 |
+| `ftc_effectiveness_matrix` | `control_allocator` | `ftc_control_monitor`、`motor_health_monitor` | `B_nominal`、trim、linearization point、limits | 1000 ms | 只读来自主链；不反馈 |
 | `ftc_allocation_shadow` | `ftc_control_monitor` | 无控制订阅者 | nominal/candidate motor、六轴 residual、saturation | 20 ms | 否 |
 | `ftc_control_authority` | `ftc_control_monitor` | `ftc_extreme_state_monitor`、`ftc_recovery`、`ftc_supervisor` | roll/pitch/yaw/thrust authority、headroom、状态 | 20 ms | 否 |
 | `ftc_extreme_state` | `ftc_extreme_state_monitor` | `ftc_recovery`、`ftc_supervisor` | impact/hard landing、LOC、score、reason | 20 ms | 否 |
-| `ftc_recovery_status` | `ftc_recovery` | `ftc_supervisor` | 状态、资格/抑制、rate/thrust/attitude 候选 | 20 ms | 否；候选断开 |
+| `ftc_recovery_status` | `ftc_recovery` | `ftc_supervisor`、`FtcRateInput` | 状态、候选、重入权重、回退 | 20 ms | 唯一 rate 输入仲裁 |
 | `ftc_system_status` | `ftc_supervisor` | 无控制订阅者 | 顶层状态、有效位、reason、confidence | 100 ms | 否 |
 | `ftc_simulation_status` | `simulator_mavlink` | 无运行时订阅者 | SITL 注入电机、目标/实际效能、间歇状态 | 20 ms | 仅仿真输出路径 |
+
+| `ftc_allocation_status` | `control_allocator` | Supervisor、MAVLink | 实际应用 λ、active、fallback | 20 ms | 控制结果反馈 |
+| `ftc_arbitration_status` | `FtcRateInput` | recovery、Supervisor、MAVLink | 实际权重和选定 rate/thrust | 20 ms | 控制结果反馈 |
 
 ## Swarm 消息与使用的 PX4 topic
 
