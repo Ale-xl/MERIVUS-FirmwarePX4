@@ -3,6 +3,7 @@
 import argparse
 import importlib.util
 import hashlib
+import ipaddress
 import json
 import math
 import os
@@ -37,7 +38,7 @@ class Session:
         self.dialect = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.dialect)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind(('127.0.0.1', 14550))
+        self.socket.bind(('127.0.0.1', 14650))
         self.socket.setblocking(False)
         self.parser = self.dialect.MAVLink(None)
         self.sender = self.dialect.MAVLink(self, srcSystem=255, srcComponent=190)
@@ -57,12 +58,19 @@ class Session:
                   'FTC_REC_ACT': 0, 'FTC_SIM_EN': 0, 'FTC_IMPACT_EN': 1, 'FTC_LOC_EN': 1,
                   'FTC_SIM_MOT': args.motor, 'FTC_SIM_EFF': 1, 'FTC_SIM_RAMP': 0, 'FTC_SIM_INT': 0,
                   'COM_RC_IN_MODE': 1, 'MIS_TAKEOFF_ALT': 10, 'SDLOG_MODE': 2}
+        config.joinpath('px4-rc.mavlink').write_text('mavlink start -x -u 18670 -o 14650 -r 4000000 -f\n' + ''.join('mavlink stream -r 50 -s {} -u 18670\n'.format(name) for name in ('LOCAL_POSITION_NED', 'GLOBAL_POSITION_INT', 'ATTITUDE', 'ATTITUDE_TARGET')))
+        if args.groundstation:
+            destination = ipaddress.ip_address(args.groundstation)
+            if not destination.is_private or destination.version != 4:
+                raise ValueError('GroundStation validation requires a private IPv4 address')
+            with config.joinpath('px4-rc.mavlink').open('a') as stream:
+                stream.write('mavlink start -x -u 18671 -o {} -t {} -r 4000000 -f\n'.format(args.groundstation_port, destination))
         config.joinpath('px4-rc.params').write_text(''.join('param set {} {}\n'.format(k, v) for k, v in params.items()))
         self.out.joinpath('scenario.json').write_text(json.dumps(dict(vars(args), runner_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest()), indent=2))
         self.out.joinpath('head.txt').write_text(subprocess.check_output(['git', '-C', str(self.repo), 'rev-parse', 'HEAD']).decode())
 
     def write(self, data):
-        self.socket.sendto(data, ('127.0.0.1', 18570))
+        self.socket.sendto(data, ('127.0.0.1', 18670))
 
     def event(self, name, **details):
         value = dict(event=name, sim_time=self.sim, wall_time=time.monotonic()-self.wall_start, **details)
@@ -85,7 +93,7 @@ class Session:
         text = result.stdout.decode(errors='replace')
         with self.out.joinpath('cli.log').open('a') as stream:
             stream.write('$ '+module+' '+' '.join(map(str, arguments))+'\n'+text+'\n')
-        if result.returncode:
+        if result.returncode and module != 'shutdown':
             self.event('cli_failure', module=module, arguments=arguments, output=text)
         return text
 
@@ -127,7 +135,7 @@ class Session:
             self.sender.manual_control_send(1, int(x), int(y), int(z), int(yaw), 0)
             self.last_manual = now
 
-    def run_for(self, duration, maneuver=False, profile='normal'):
+    def run_for(self, duration, maneuver=False):
         start = self.sim
         wall = time.monotonic()
         while self.sim-start < duration:
@@ -136,8 +144,9 @@ class Session:
             elapsed = self.sim-start
             if maneuver:
                 amplitude = self.args.amplitude
-                self.manual(amplitude*math.sin(elapsed*1.3), amplitude*math.sin(elapsed*1.9),
-                            500+100*math.sin(elapsed*.5), amplitude*math.sin(elapsed*1.1))
+                frequencies = (3.2, 4.3, 2.1, 1.7) if self.args.profile == 'angular' else (1.3, 1.9, .5, 1.1)
+                self.manual(amplitude*math.sin(elapsed*frequencies[0]), amplitude*math.sin(elapsed*frequencies[1]),
+                            500+100*math.sin(elapsed*frequencies[2]), amplitude*math.sin(elapsed*frequencies[3]))
             else:
                 self.manual()
             self.pump()
@@ -158,7 +167,7 @@ class Session:
         return bool(valid)
 
     def run(self):
-        for port in (4560, 18570):
+        for port in (4560, 18670):
             probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM if port == 4560 else socket.SOCK_DGRAM)
             try:
                 probe.bind(('127.0.0.1', port))
@@ -181,6 +190,19 @@ class Session:
                 raise RuntimeError('No PX4 local-position telemetry')
         self.event('ground')
         self.run_for(12)
+        if self.args.groundstation:
+            self.event('groundstation_live')
+            self.run_for(60)
+            streams = ('MERIVUS_FTC_MOTOR_STATUS', 'MERIVUS_FTC_CONTROL_STATUS',
+                       'MERIVUS_FTC_EXTREME_STATUS', 'MERIVUS_FTC_DIAGNOSTICS')
+            for name in streams:
+                self.cli('mavlink', 'stream', '-u', 18671, '-s', name, '-r', 0)
+            self.event('groundstation_ftc_paused_heartbeat_continues')
+            self.run_for(60)
+            for name, rate in zip(streams, (5, 5, 10, 1)):
+                self.cli('mavlink', 'stream', '-u', 18671, '-s', name, '-r', rate)
+            self.event('groundstation_ftc_resumed')
+            self.run_for(40)
         self.cli('param', 'show')
         self.command(400, [1])
         self.run_for(2)
@@ -191,7 +213,7 @@ class Session:
             raise RuntimeError('Takeoff did not reach five meters')
         self.event('loiter')
         self.run_for(10)
-        self.command(176, [1, 3, 0])
+        self.command(176, [1, 2 if self.args.profile == 'angular' else 3, 0])
         self.event('baseline_maneuver')
         self.run_for(self.args.baseline, maneuver=True)
         self.gate_passed = self.gate()
@@ -208,12 +230,18 @@ class Session:
             self.event('fault_removed')
             self.run_for(20, maneuver=True)
         else:
+            self.command(176, [1, 3, 0])
             self.run_for(20)
         self.event('landing')
         self.cli('commander', 'land')
         self.run_for(30)
         self.cli('commander', 'disarm')
         self.run_for(3)
+        self.cli('mavlink', 'status')
+        self.cli('uorb', 'top', '-1')
+        self.cli('logger', 'status')
+        for module in ('motor_health_monitor', 'ftc_control_monitor', 'ftc_extreme_state_monitor', 'ftc_recovery', 'ftc_supervisor'):
+            self.cli(module, 'status')
         self.event('finished', baseline_gate=self.gate_passed)
 
     def close(self):
@@ -247,8 +275,11 @@ if __name__ == '__main__':
     parser.add_argument('--motor', type=int, choices=range(1, 5), default=1)
     parser.add_argument('--baseline', type=float, default=80)
     parser.add_argument('--duration', type=float, default=45)
+    parser.add_argument('--profile', choices=('normal','angular'), default='normal')
     parser.add_argument('--amplitude', type=float, default=350)
     parser.add_argument('--speed', type=float, default=2)
+    parser.add_argument('--groundstation', help='Private IPv4 destination for the separate live UI/stale stream')
+    parser.add_argument('--groundstation-port', type=int, default=14550)
     args = parser.parse_args()
     session = Session(args)
     try:
