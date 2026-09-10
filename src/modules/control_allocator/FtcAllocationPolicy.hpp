@@ -33,7 +33,7 @@ public:
 		if (!input.armed) { reason |= DISARMED; }
 		if (!input.supported || input.count < 4 || input.count > Motors) { reason |= UNSUPPORTED; }
 		if (!fresh(input.now, input.model_timestamp, 200000) || !fresh(input.now, input.authority_timestamp, 200000)
-		    || !isfinite(input.estimate_age) || input.estimate_age > 2.f) { reason |= STALE_INPUT; }
+		    || !isfinite(input.estimate_age) || input.estimate_age < 0.f || input.estimate_age > 2.f) { reason |= STALE_INPUT; }
 		if (!input.model_valid) { reason |= INVALID_MODEL; }
 		if (!input.authority_valid || !isfinite(input.attitude_authority) || !isfinite(input.thrust_authority)
 		    || !isfinite(input.yaw_authority) || input.attitude_authority < 0.35f || input.thrust_authority < 0.25f) { reason |= AUTHORITY; }

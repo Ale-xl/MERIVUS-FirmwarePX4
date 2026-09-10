@@ -24,7 +24,9 @@ public:
 		if (!fresh(input.now, input.candidate_timestamp) || !fresh(input.now, input.normal_timestamp)) { reason |= STALE; }
 		if (!input.candidate_valid) { reason |= INVALID; }
 		if (!input.mode_matches) { reason |= MODE_CHANGED; }
+		bool normal_valid = true;
 		for (unsigned i = 0; i < 4; ++i) {
+			normal_valid &= isfinite(input.normal[i]);
 			if (!isfinite(input.candidate[i]) || !isfinite(input.normal[i])) { reason |= INVALID; }
 			if (i < 3 && fabsf(input.candidate[i]) > 6.f) { reason |= INVALID; }
 		}
@@ -32,7 +34,9 @@ public:
 		    || input.candidate[3] > 0.f || input.candidate[3] < -1.f) { reason |= INVALID; }
 		const float target = reason == 0 ? clamp(input.requested_weight, 0.f, 1.f) : 0.f;
 		dt = clamp(dt, 0.f, 0.02f);
-		if (input.hard_exit || !fresh(input.now, input.normal_timestamp)) { weight = 0.f; }
+		// No interpolation is defined against an invalid normal setpoint. Release FTC
+		// ownership; handling the original invalid input remains with the PX4 controller.
+		if (input.hard_exit || !normal_valid || !fresh(input.now, input.normal_timestamp)) { weight = 0.f; }
 		else { weight += clamp(target - weight, -2.f * dt, dt); }
 		for (unsigned i = 0; i < 4; ++i) {
 			if (reason == 0) { _held[i] = input.candidate[i]; }

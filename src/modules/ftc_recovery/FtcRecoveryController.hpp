@@ -41,6 +41,9 @@ public:
 		float norm = 0.f;
 		for (float v : in.q) { norm += v*v; }
 		bool finite = isfinite(norm) && norm > 0.9f && norm < 1.1f && isfinite(in.normal_thrust);
+		finite &= (!in.vertical_valid || isfinite(in.vz)) && (!in.position_valid || isfinite(in.z));
+		finite &= isfinite(in.hover_thrust) && in.hover_thrust > 0.f && in.hover_thrust < 1.f;
+		finite &= isfinite(in.max_rate) && in.max_rate > 0.f && isfinite(in.damping) && in.damping >= 0.f;
 		for (unsigned a = 0; a < 3; ++a) { finite &= isfinite(in.rates[a]) && isfinite(in.normal_rates[a]); }
 		if (!in.enabled) { transition(DISABLED, in.now); }
 		else if (!in.armed && in.landed && in.fresh) { transition(MONITORING, in.now); _trigger_latched = false; }
