@@ -11,12 +11,13 @@ public:
 	static constexpr unsigned Motors = 12;
 	enum State : uint8_t { NOMINAL, WAITING, BLENDING, ACTIVE, FALLBACK };
 	enum Reason : uint32_t { DISABLED = 1, STALE_INPUT = 2, INVALID_MODEL = 4, UNCERTAINTY = 8,
-		AUTHORITY = 16, UNSUPPORTED = 32, RESET = 64, NO_PERSISTENT_FAULT = 128, DISARMED = 256 };
+		AUTHORITY = 16, UNSUPPORTED = 32, RESET = 64, NO_PERSISTENT_FAULT = 128, DISARMED = 256, LANDED = 512 };
 	struct Input {
 		uint64_t now{0}, model_timestamp{0}, authority_timestamp{0};
 		uint32_t reset_count{0};
 		unsigned count{0};
 		bool enabled{false}, armed{false}, supported{false}, model_valid{false}, authority_valid{false};
+		bool landed{true};
 		float estimate_age{INFINITY}, attitude_authority{0.f}, thrust_authority{0.f}, yaw_authority{0.f};
 		float lambda[Motors] {}, uncertainty[Motors] {};
 	};
@@ -31,6 +32,7 @@ public:
 		reason = 0;
 		if (!input.enabled) { reason |= DISABLED; }
 		if (!input.armed) { reason |= DISARMED; }
+		if (input.landed) { reason |= LANDED; }
 		if (!input.supported || input.count < 4 || input.count > Motors) { reason |= UNSUPPORTED; }
 		if (!fresh(input.now, input.model_timestamp, 200000) || !fresh(input.now, input.authority_timestamp, 200000)
 		    || !isfinite(input.estimate_age) || input.estimate_age < 0.f || input.estimate_age > 2.f) { reason |= STALE_INPUT; }
@@ -45,7 +47,7 @@ public:
 			fault |= input.lambda[i] < (_engaged ? 0.98f : 0.95f);
 		}
 		dt = fminf(fmaxf(dt, 0.f), 0.1f);
-		if (reason & (DISARMED | UNSUPPORTED)) { resetGeometry(); }
+		if (reason & (DISARMED | LANDED | UNSUPPORTED)) { resetGeometry(); }
 		_fault_elapsed = reason == 0 && fault ? _fault_elapsed + dt : 0.f;
 		if (_fault_elapsed < 1.f) { reason |= NO_PERSISTENT_FAULT; }
 		_engaged = reason == 0;
@@ -59,10 +61,10 @@ public:
 			nominal &= fabsf(_lambda[i] - 1.f) < 1e-5f;
 		}
 		if (!_engaged && nominal) { for (float &v : _lambda) { v = 1.f; } }
-		active = !nominal || yaw_weight < 0.99999f;
-		state = _engaged ? (changed ? BLENDING : ACTIVE) : (active ? FALLBACK : (input.enabled ? WAITING : NOMINAL));
 		_yaw_relaxed = _engaged && input.yaw_authority < (_yaw_relaxed ? 0.3f : 0.2f);
 		yaw_weight += fminf(fmaxf((_yaw_relaxed ? 0.f : 1.f) - yaw_weight, -dt), dt);
+		active = !nominal || yaw_weight < 0.99999f;
+		state = _engaged ? (changed ? BLENDING : ACTIVE) : (active ? FALLBACK : (input.enabled ? WAITING : NOMINAL));
 	}
 	float lambda(unsigned index) const { return index < Motors ? _lambda[index] : 1.f; }
 	static bool fresh(uint64_t now, uint64_t timestamp, uint64_t timeout)

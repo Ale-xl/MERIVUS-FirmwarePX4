@@ -7,7 +7,7 @@ static FtcAllocationPolicy::Input allocationInput()
 {
     FtcAllocationPolicy::Input in{};
     in.enabled = in.armed = in.supported = in.model_valid = in.authority_valid = true;
-    in.count = 4; in.estimate_age = 0;
+    in.count = 4; in.estimate_age = 0; in.landed = false;
     in.attitude_authority = in.thrust_authority = in.yaw_authority = 1;
     for (unsigned i = 0; i < 4; ++i) { in.lambda[i] = i ? 1.f : .7f; in.uncertainty[i] = .04f; }
     return in;
@@ -50,6 +50,23 @@ TEST(AllocationSafety, NegativeEstimateAgeCannotActivate)
         in.now += 20000; in.model_timestamp = in.authority_timestamp = in.now; policy.update(.02f, in);
     }
     EXPECT_FALSE(policy.active);
+}
+
+TEST(AllocationSafety, LandingAndDisarmClearAppliedMatrix)
+{
+    for (int scenario = 0; scenario < 3; ++scenario) {
+        FtcAllocationPolicy policy; auto in = allocationInput();
+        for (int i = 0; i < 200; ++i) {
+            in.now += 20000; in.model_timestamp = in.authority_timestamp = in.now; policy.update(.02f, in);
+        }
+        ASSERT_TRUE(policy.active);
+        if (scenario == 0) in.landed = true;
+        if (scenario == 1) in.armed = false;
+        if (scenario == 2) in.supported = false;
+        policy.update(.02f, in);
+        EXPECT_FALSE(policy.active); EXPECT_FLOAT_EQ(policy.lambda(0), 1.f);
+        EXPECT_FLOAT_EQ(policy.yaw_weight, 1.f);
+    }
 }
 
 TEST(ArbitrationSafety, InvalidNormalImmediatelyReleasesFtcOwnership)

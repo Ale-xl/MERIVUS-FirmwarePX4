@@ -10,7 +10,7 @@ TEST(FtcAllocationPolicy, DisabledIsNominalAndFaultMustPersist)
 {
 	FtcAllocationPolicy policy;
 	FtcAllocationPolicy::Input in{};
-	in.count = 4; in.armed = in.supported = in.model_valid = in.authority_valid = true;
+	in.count = 4; in.landed = false; in.armed = in.supported = in.model_valid = in.authority_valid = true;
 	in.attitude_authority = in.thrust_authority = in.yaw_authority = 1.f;
 	in.estimate_age = 0.f;
 	for (unsigned i = 0; i < 4; ++i) { in.lambda[i] = i ? 1.f : 0.8f; in.uncertainty[i] = 0.03f; }
@@ -43,7 +43,7 @@ TEST(FtcAllocationPolicy, ResetAndUncertaintyCannotActivate)
 	FtcAllocationPolicy policy;
 	FtcAllocationPolicy::Input in{};
 	in.enabled = in.armed = in.supported = in.model_valid = in.authority_valid = true;
-	in.count = 4; in.estimate_age = 0.f;
+	in.count = 4; in.landed = false; in.estimate_age = 0.f;
 	in.attitude_authority = in.thrust_authority = in.yaw_authority = 1.f;
 	for (unsigned i = 0; i < 4; ++i) { in.lambda[i] = 0.8f; in.uncertainty[i] = 0.5f; }
 	for (unsigned k = 1; k < 200; ++k) {
@@ -132,7 +132,7 @@ TEST(FtcAllocationPolicy, StructuralGateRestoresNominalImmediately)
  FtcAllocationPolicy policy;
  FtcAllocationPolicy::Input in{};
  in.enabled = in.armed = in.supported = in.model_valid = in.authority_valid = true;
- in.count = 4; in.estimate_age = 0.f;
+ in.count = 4; in.landed = false; in.estimate_age = 0.f;
  in.attitude_authority = in.thrust_authority = 1.f; in.yaw_authority = 0.1f;
  for (unsigned i = 0; i < 4; ++i) { in.lambda[i] = 0.7f; in.uncertainty[i] = 0.02f; }
  for (unsigned k = 1; k < 200; ++k) {

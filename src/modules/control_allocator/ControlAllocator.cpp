@@ -618,6 +618,9 @@ void ControlAllocator::update_ftc_allocation(float dt, hrt_abstime now)
 	input.enabled = _param_ftc_mon_en.get() && _param_ftc_ca_en.get();
 	vehicle_status_s vehicle{};
 	_vehicle_status_sub.copy(&vehicle);
+	vehicle_land_detected_s land{};
+	_ftc_land_sub.copy(&land);
+	input.landed = land.landed || !FtcAllocationPolicy::fresh(now, land.timestamp, 1000000);
 	input.armed = _armed && FtcAllocationPolicy::fresh(now, vehicle.timestamp, 1000000)
 		&& !vehicle.failsafe && !vehicle.is_vtol && vehicle.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING;
 	input.supported = _ftc_nominal_valid && _num_control_allocation == 1

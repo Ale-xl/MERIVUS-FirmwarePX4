@@ -80,6 +80,7 @@
 #include <uORB/topics/vehicle_torque_setpoint.h>
 #include <uORB/topics/vehicle_thrust_setpoint.h>
 #include <uORB/topics/vehicle_status.h>
+#include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/failure_detector_status.h>
 #include <uORB/topics/ftc_effectiveness_matrix.h>
 
@@ -204,6 +205,7 @@ private:
 
 	uORB::Subscription _ftc_parameter_update_sub{ORB_ID(parameter_update)};
 	uORB::Subscription _vehicle_status_sub{ORB_ID(vehicle_status)};
+	uORB::Subscription _ftc_land_sub{ORB_ID(vehicle_land_detected)};
 	uORB::Subscription _failure_detector_status_sub{ORB_ID(failure_detector_status)};
 
 	matrix::Vector3f _torque_sp;
