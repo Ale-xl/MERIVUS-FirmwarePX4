@@ -19,12 +19,13 @@
 
 | 路径/接口 | 分类 | 依据与说明 |
 | --- | --- | --- |
-| `src/modules/ekf2`、`mc_att_control`、`mc_rate_control`、`mc_pos_control`、`commander`、`flight_mode_manager` | `PX4_UPSTREAM` | 从初始导入到产品冻结基线 `3ec2f9f2c3` 未被 MERIVUS 产品提交修改；FTC 分支也未改这些路径 |
-| `src/modules/control_allocator` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` | 原生 allocator 保留；仅追加 `FTC_CA_SHADOW` 控制的名义矩阵只读发布 hook |
-| `src/modules/logger/logged_topics.cpp` | `MERIVUS_MODIFIED_PX4` | 追加 9 个可选 FTC topic，不改变 logger 架构 |
+| `src/modules/ekf2`、`mc_att_control`、`mc_pos_control`、`commander`、`flight_mode_manager` | `PX4_UPSTREAM` | 产品冻结基线及本轮 FTC 工作未修改这些路径 |
+| `src/modules/mc_rate_control` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` | 原生 rate 控制器保留；FTC 在 setpoint 入口仲裁恢复候选，默认关闭实际接管 |
+| `src/modules/control_allocator` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` | 保留唯一原生 allocator；发布名义矩阵，并在有效性、解锁/着陆等门控下应用 FTC 分配策略，默认关闭实际接管 |
+| `src/modules/logger/logged_topics.cpp` | `MERIVUS_MODIFIED_PX4` | 记录 11 个 FTC topic，不改变 logger 架构 |
 | `src/modules/simulation/simulator_mavlink` | `MERIVUS_MODIFIED_PX4` + `EXPERIMENTAL` | 追加 SITL 电机效能注入和 `ftc_simulation_status` |
 | `src/modules/motor_health_monitor`、`src/modules/ftc_*` | `MERIVUS_CUSTOM` + `EXPERIMENTAL` | 2026 FTC 分支新增，版权头与提交历史均可追溯 |
-| 9 个 FTC `.msg` | `MERIVUS_CUSTOM` + `EXPERIMENTAL` | 由 FTC 分支新增，进入 uORB 生成流程 |
+| 11 个 FTC `.msg`（含 `MotorHealthStatus`） | `MERIVUS_CUSTOM` + `EXPERIMENTAL` | 由 FTC 分支新增，进入 uORB 生成流程 |
 | `src/modules/swarm_node`、`msg/SwarmCommand.msg` | `MERIVUS_CUSTOM` + `UNKNOWN` | 初始导入已存在；后续 MERIVUS 提交有 v1.14 适配，导入前精确来源不可证 |
 | `boards/px4/fmu-v6c` | `BOARD_SPECIFIC` + `MERIVUS_MODIFIED_PX4` | V6C22/BMI088、Hyper982、HyperLte、swarm/FTC 构建开关均有产品提交 |
 | `src/modules/mavlink` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` | 产品提交涉及串口带宽语义、副 GNSS 精度和 v1.14 兼容；其余仍是上游主体 |
@@ -36,4 +37,4 @@
 
 - `upstream/release/1.14` 与产品导入历史没有共同祖先，不能用 `merge-base` 推导精确官方基线。
 - 现有内容哈希审计表明初始导入的 6,001 个 blob 中，5,725 个与本机 v1.14.4 同路径文件一致、116 个不同、160 个仅存在于导入快照；v1.14.4 另有 9 个文件。详见 `docs/extreme_control/LOCAL_MODIFICATIONS_AUDIT.md`。
-- 当前 FTC 分支相对 `3ec2f9f2c3` 的 64 个变更路径可由 Git 完整证明；这部分可以明确归入 MERIVUS FTC 工作。
+- 历史审计记录了相对 `3ec2f9f2c3` 的 64 个 FTC 变更路径；后续差异继续由 Git 提交追溯，当前验证范围见 [本轮报告](../testing/FTC_FULL_VALIDATION_REPORT.md)。

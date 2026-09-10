@@ -2,6 +2,8 @@
 
 这里是 FirmwarePX4 产品文档的统一入口。PX4 上游通用资料仍放在 `Documentation/`；MERIVUS 当前的架构、产品合同、实验状态和开发规则从本页进入。
 
+FTC 本轮收尾入口：[开发与验证报告](testing/FTC_FULL_VALIDATION_REPORT.md)、[状态矩阵](testing/FTC_VALIDATION_MATRIX.md)、[真实 Estimator 结果](testing/FTC_ESTIMATOR_SITL_RESULTS.md)、[当前架构](extreme_control/FTC_MASTER_ARCHITECTURE.md)。估计器尚未通过稳定 SITL 准入，Active 仍未验证。
+
 ## 1. Project Overview
 
 - [仓库 README](../README.md)：项目、支持范围、快速构建和安全边界
