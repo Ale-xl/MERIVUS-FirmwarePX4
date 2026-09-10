@@ -5,6 +5,7 @@
  ****************************************************************************/
 
 #include "MotorHealthMonitor.hpp"
+#include "PropulsionFaultEvidence.hpp"
 
 #include <mathlib/mathlib.h>
 #include <px4_platform_common/log.h>
@@ -148,36 +149,14 @@ void MotorHealthMonitor::classifyFaults(hrt_abstime now, const actuator_motors_s
 			: ((status.failed_mask & (1u << i)) ? motor_health_status_s::FAILED
 			   : ((status.degraded_mask & (1u << i)) ? motor_health_status_s::DEGRADED : motor_health_status_s::VALID_HEALTHY));
 
-		if (status.fault_probability[i] < _param_ftc_fault_p.get()) {
-			if (status.model_valid && status.vibration_score > 1.f && degradation < 0.1f) {
-				status.fault_type[i] = motor_health_status_s::FAULT_MECHANICAL_IMBALANCE;
-			}
-
-			continue;
-		}
+		if (status.fault_probability[i] < _param_ftc_fault_p.get()) { continue; }
 
 		++localized_faults;
 		if (!status.model_valid) { status.diagnosis_state[i] = motor_health_status_s::UNKNOWN; }
 
 		if (!esc_online || esc_failed || motor_stuck || rpm_stopped) { status.diagnosis_state[i] = motor_health_status_s::FAILED; }
-		if (!esc_online || esc_failed) {
-			status.fault_type[i] = motor_health_status_s::FAULT_ESC_OR_POWER_FAILURE;
-
-		} else if (motor_stuck || rpm_stopped) {
-			status.fault_type[i] = motor_health_status_s::FAULT_MOTOR_STOP;
-
-		} else if (_effectiveness_change_lpf[i] > 0.25f && status.fault_persistence[i] > 1.f) {
-			status.fault_type[i] = motor_health_status_s::FAULT_INTERMITTENT_PROPULSION_FAILURE;
-
-		} else if (status.vibration_score > 1.f && degradation > 0.15f && status.fault_confidence[i] > 0.6f) {
-			status.fault_type[i] = motor_health_status_s::FAULT_PROP_DAMAGE;
-
-		} else if (status.model_valid && status.fault_confidence[i] > 0.75f) {
-			status.fault_type[i] = motor_health_status_s::FAULT_MOTOR_DEGRADATION;
-
-		} else {
-			status.fault_type[i] = motor_health_status_s::FAULT_UNKNOWN_PROPULSION_DEGRADATION;
-		}
+		status.fault_type[i] = classifyPropulsionFault(!esc_online || esc_failed, motor_stuck || rpm_stopped,
+			_effectiveness_change_lpf[i] > 0.25f && status.fault_persistence[i] > 1.f);
 	}
 
 	if (localized_faults == 0 && status.external_disturbance_score >= _param_ftc_fault_ext.get()) {
