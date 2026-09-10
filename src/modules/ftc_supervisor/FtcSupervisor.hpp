@@ -6,6 +6,7 @@
 
 #pragma once
 #include <uORB/topics/ftc_allocation_status.h>
+#include <uORB/topics/ftc_allocation_shadow.h>
 #include <uORB/topics/ftc_arbitration_status.h>
 
 #include <drivers/drv_hrt.h>
@@ -39,6 +40,7 @@ public:
 private:
 	void Run() override;
 
+	uORB::Subscription _shadow_sub{ORB_ID(ftc_allocation_shadow)};
 	uORB::Subscription _allocation_sub{ORB_ID(ftc_allocation_status)};
 	uORB::Subscription _arbitration_sub{ORB_ID(ftc_arbitration_status)};
 	uORB::Subscription _health_sub{ORB_ID(motor_health_status)};
