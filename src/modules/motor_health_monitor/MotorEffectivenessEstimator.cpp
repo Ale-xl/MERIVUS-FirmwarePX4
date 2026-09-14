@@ -207,7 +207,9 @@ void MotorEffectivenessEstimator::update(float dt, const Input &input, const Con
 		_output.residual[i] = 1.f - _output.effectiveness[i];
 		confidence_min = fminf(confidence_min, _output.confidence[i]);
 	}
-	_output.estimate_valid = input.valid && _output.baseline_learned && _output.estimate_age <= cfg.stale_time
+	// Only an accepted observation can certify a new estimate. Quiet residuals cannot certify an old, invalid update.
+	const bool certified = _output.update_allowed || (_last_update && _last_update <= _output.last_valid_timestamp);
+	_output.estimate_valid = input.valid && certified && _output.baseline_learned && _output.estimate_age <= cfg.stale_time
 		&& confidence_min >= cfg.confidence_minimum && _output.model_residual <= cfg.residual_limit;
 	_output.model_quality = _output.estimate_valid ? confidence_min / (1.f + _output.model_residual) : 0.f;
 	if (_output.estimate_valid && _output.update_allowed) { _output.last_valid_timestamp = input.timestamp; }

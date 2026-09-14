@@ -65,6 +65,41 @@ TEST(MotorEffectivenessEstimator, LowExcitationCannotManufactureConfidence)
 	EXPECT_FALSE(f.estimator.output().estimate_valid);
 	EXPECT_FLOAT_EQ(f.estimator.output().confidence[0], 0.f);
 }
+TEST(MotorEffectivenessEstimator, PausedUpdateCannotCertifyPreviouslyInvalidEstimate)
+{
+	Fixture f;
+	f.config.confidence_minimum = 1.f;
+	f.run(35.f);
+	ASSERT_TRUE(f.estimator.output().baseline_learned);
+	ASSERT_GT(f.estimator.output().update_count, 0u);
+	ASSERT_FALSE(f.estimator.output().estimate_valid);
+	ASSERT_EQ(f.estimator.output().last_valid_timestamp, 0u);
+	// A quality gate change without an observation must not certify a previously rejected estimate.
+	f.config.confidence_minimum = 0.6f;
+	f.run(1.f, 1.f, true, true);
+	EXPECT_FALSE(f.estimator.output().estimate_valid);
+	EXPECT_EQ(f.estimator.output().last_valid_timestamp, 0u);
+	f.run(1.f);
+	EXPECT_TRUE(f.estimator.output().estimate_valid);
+	EXPECT_GT(f.estimator.output().last_valid_timestamp, 0u);
+}
+TEST(MotorEffectivenessEstimator, ValidHistorySurvivesPausedUpdatesAndExpires)
+{
+	Fixture f;
+	f.run(35.f);
+	ASSERT_TRUE(f.estimator.output().estimate_valid);
+	const auto last_valid = f.estimator.output().last_valid_timestamp;
+	ASSERT_GT(last_valid, 0u);
+	f.run(2.f, 1.f, true, true);
+	EXPECT_TRUE(f.estimator.output().estimate_valid);
+	EXPECT_EQ(f.estimator.output().last_valid_timestamp, last_valid);
+	EXPECT_GT(f.estimator.output().estimate_age, 1.9f);
+	f.run(12.f, 1.f, false, true);
+	EXPECT_TRUE(f.estimator.output().baseline_learned);
+	EXPECT_FALSE(f.estimator.output().estimate_valid);
+	EXPECT_EQ(f.estimator.output().last_valid_timestamp, last_valid);
+	EXPECT_EQ(f.estimator.output().state, Estimator::STALE);
+}
 TEST(MotorEffectivenessEstimator, CorrelatedCollectiveIsRankDeficient)
 {
 	Fixture f;
