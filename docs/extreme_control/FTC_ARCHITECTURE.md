@@ -1,6 +1,6 @@
 # FTC 当前架构与验证边界
 
-源码基准：`d4c3972f68b5d1ee2d890980751179c84ac2eb89`。本页依据源码复核整理；本轮实际证据见 [验证报告](../testing/FTC_FULL_VALIDATION_REPORT.md)。默认 `FTC_CA_EN=0`、`FTC_REC_ACT=0`、`FTC_SIM_EN=0`。估计器尚未通过稳定的真实 SITL 准入检查。
+最终源码基准：`3b4304e25350c02452d68a1a598d4f7fdacc45c9`。构建与测试证据的具体提交边界见 [验证总结](../testing/FTC_VALIDATION_SUMMARY.md)。默认 `FTC_CA_EN=0`、`FTC_REC_ACT=0`、`FTC_SIM_EN=0`。估计器尚未通过稳定的真实 SITL 准入检查。
 
 ```mermaid
 flowchart TD
@@ -50,4 +50,4 @@ flowchart TD
 
 两仓协议 XML 及生成头对应四类消息：60000 MOTOR、60001 CONTROL、60002 EXTREME、60003 DIAGNOSTICS。11 个 FTC uORB topic 在本轮 7 次飞行 ULog 中均存在。
 
-旧文档作为历史证据保留。本轮按用户收尾要求停止进一步开发，原计划的全部专题文档拆分尚未完成；不能把历史方案中的 Active 目标当作当前验证结果。
+各模块的算法边界和验证状态见本目录专题文档。历史方案和中间测试记录已归档，不能把其中的 Active 目标当作当前验证结果。

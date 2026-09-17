@@ -1,12 +1,12 @@
-# FTC 本轮开发、验证与收尾记录
+# FTC 验证总结
 
 日期：2026-09-09 至 2026-09-10。原计划为完整软件验证，随后用户要求“收尾并整理总结之前的工作”，本轮据此结束，不再扩大测试范围。本文记录实际结果，不表示 FTC 全项目验收通过。
 
-最终生产代码构建基准：Firmware `d4c3972f68b5d1ee2d890980751179c84ac2eb89`。GroundStation Release 构建基准 `31638ea`，后续 `5a1931af64704487a8fc4eae03d93c679e794310` 只增加测试探针及说明，未改变应用生产代码。
+最终源码基准：Firmware `3b4304e25350c02452d68a1a598d4f7fdacc45c9`，GroundStation `e7444f32b2f81c699e8b881a1262ca8f1945f5ee`。Firmware 最终源码已通过 25/25 Host 单元测试，并在隔离 VM worktree 完成 SITL 与 FMUv6C 构建。GroundStation Release 生产构建基准为 `31638ea`，后续改动只涉及测试探针和文档。
 
 ## A. 项目最终架构
 
-见 [当前架构](../extreme_control/FTC_MASTER_ARCHITECTURE.md)。估计、健康诊断、动态矩阵/控制裕度、Shadow、恢复候选、实际仲裁、Supervisor 与地面站均有实现。实际控制仍由 PX4 的 rate controller 和唯一 ControlAllocator 执行。
+见 [当前架构](../extreme_control/FTC_ARCHITECTURE.md)。估计、健康诊断、动态矩阵/控制裕度、Shadow、恢复候选、实际仲裁、Supervisor 与地面站均有实现。实际控制仍由 PX4 的 rate controller 和唯一 ControlAllocator 执行。
 
 ## B. 本轮发现的缺口
 
@@ -37,7 +37,7 @@
 
 4 秒故障/4 秒恢复的间歇场景失败：最终 λ=0.421727，MAE=0.304411，其他电机误差最高 0.319358；平均 sigma=0.297927、confidence=0.175677，最后窗口有效比例为 0。不能把整个 sweep 报为全部通过。
 
-7 次真实飞行的最终准入门均未通过。部分会话短暂出现 `valid=true`，飞行统计窗口占比约 5%–6%，但没有形成稳定有效估计。最近会话门检查时 λ≈[0.950,0.995,1.000,1.000]，sigma≈[0.371,0.324,0.265,0.385]，confidence≈[0.045,0.095,0.210,0.035]。这些 λ 是量化遥测快照，不代表飞行全过程精度。详见 [SITL 数据表](FTC_ESTIMATOR_SITL_RESULTS.md)。
+7 次真实飞行的最终准入门均未通过。部分会话短暂出现 `valid=true`，最近 3 次飞行统计窗口占比约 5.39%–6.00%，但没有形成稳定有效估计。最近会话门检查时 λ≈[0.950,0.995,1.000,1.000]，sigma≈[0.371,0.324,0.265,0.385]，confidence≈[0.045,0.095,0.210,0.035]。这些 λ 是量化遥测快照，不代表飞行全过程精度。低激励限制已登记为 `KNOWN_LIMITATION`，不阻断本次软件收口。
 
 ## E. Fault Diagnosis 结果
 
@@ -100,22 +100,22 @@ Windows 截图接口报 `SetIsBorderRequired 0x80004002`，点击接口报 `coor
 
 ## P. FMUv6C Build
 
-最终代码 `d4c3972f68` 上执行 `make px4_sitl_default -j4`、`make px4_fmu-v6c_default -j4`，均通过。使用隔离 VM worktree，由本地 Git bundle 导入，原 VM 开发目录未直接修改。
+最终源码 `3b4304e253` 上执行 `make px4_sitl_default -j4`、`make px4_fmu-v6c_default -j4`，均通过。使用隔离 VM worktree，由本地 Git bundle 导入，原 VM 开发目录未直接修改。
 
 | 产物 | SHA-256 |
 | --- | --- |
-| FMUv6C ELF | `21b285eeb14c7a0f22912cd7146759a4f37f8413778c5f695004bbbde3b8cf68` |
-| FMUv6C BIN | `b9780da5d6aaa1845b9a9dab1e70daf9546e99b9e6c61938ac551d0f718e85cd` |
-| FMUv6C PX4 | `7691f166bcfa68237f2dc6a23129a04120f5ed4945d9a42ba62c419eeeccd1cb` |
-| SITL px4 | `ea9cd31b33ac8259dd4dba1b74d6c20005f8641fcbb42ebfe3e4505e69a520d2` |
-| 源 Git bundle | `c1c0cb8eb1542f6dc32d2faaa5d6b30278f22eb6b0cdd4aeae0c8d169e67b1b4` |
+| FMUv6C ELF | `0cbdf8ef63f77a7788d7b7ff419602ce986c6f7fdff83324034fe21d18933c22` |
+| FMUv6C BIN | `802b31a1cafd3e46b4d2da296202bd1a70156736ac1bd936b9dfd57c12ddce45` |
+| FMUv6C PX4 | `9a4999cb614d6e75b46e0c622d60774035beb9782845c21dc99083c331ddc9a1` |
+| SITL px4 | `4e2253d445f606f52cc0aab38a8775b32cbfe4fe42fad0aa788a2f5cda321e2b` |
+| 源 Git bundle | 见最终归档 `MANIFEST.sha256`；bundle 包含本页所在的收口提交 |
 | GroundStation MERIVUS.exe | `8b7cfe912342c079a20d929b06b94279a8e45d3ead1cd785ce79eb90355d88cb` |
 
 工具链：Ubuntu g++ 9.4.0、arm-none-eabi-gcc 9.2.1，现有 CMake/Ninja；Windows Qt 5.15.2、MSVC 14.44。依赖使用仓库锁定 gitlink。固件文件在隔离目录 `build/px4_fmu-v6c_default/`，没有刷写真实硬件。
 
 ## Q. 性能 / 资源
 
-最终 Flash 1964728 / 1966080 B（99.93%），剩余 1352 B；AXI SRAM 静态占用 61608 / 524288 B（11.75%）。没有扩大链接区。Flash 余量很小，后续代码变更必须重新构建检查。
+最终 Flash 1964832 / 1966080 B（99.94%），剩余 1248 B；AXI SRAM 静态占用 61608 / 524288 B（11.75%）。没有扩大链接区。Flash 余量很小，后续代码变更必须重新构建检查。
 
 FTC 常规观测 topic 约 50 Hz，Supervisor 10 Hz。矩阵为配置快照，不要求 50 Hz。CPU 峰值、H743 栈高水位和最坏 logger 负载尚未完成测量，不用静态 RAM 数字替代运行时资源验证。
 
@@ -143,7 +143,7 @@ GitNexus 使用现有本地索引并刷新，做了核心影响与提交前差�
 
 ## U. 人工剩余工作
 
-见 [人工与硬件验证](FTC_MANUAL_REMAINING_TESTS.md)。仅包括窗口视觉、目标硬件、真实 ESC/推力测量、HITL/台架及以后单独批准的飞行。当前不要求用户马上执行。
+见 [人工验证](FTC_MANUAL_VALIDATION.md)。仅包括窗口视觉、目标硬件、真实 ESC/推力测量、HITL/台架及以后单独批准的飞行。当前不要求用户马上执行。
 
 ## V. Remaining Risks
 
@@ -155,7 +155,7 @@ GitNexus 使用现有本地索引并刷新，做了核心影响与提交前差�
 
 ## X. Firmware Git
 
-起点 `70193b156976d24f869dd359ac52f33d2403197d`，本轮分支 `codex/ftc-full-validation`。测试前 tag `archive/ftc-full-validation-pre-20260909`。代码按配置、安全门、Supervisor、着陆回退、诊断和工具分开提交；构建代码点为 `d4c3972f68`。收尾文档在后续独立提交，不改生产代码。未 push、未 merge。
+起点 `70193b156976d24f869dd359ac52f33d2403197d`，本轮分支 `codex/ftc-full-validation`。测试前 tag `archive/ftc-full-validation-pre-20260909`。代码按配置、安全门、Supervisor、着陆回退、诊断和工具分开提交；最终源码构建点为 `3b4304e253`。收尾文档在后续独立提交，不改生产代码。未 push、未 merge。
 
 ## Y. GroundStation Git
 
@@ -165,6 +165,4 @@ GitNexus 使用现有本地索引并刷新，做了核心影响与提交前差�
 
 本轮修复了可复现的软件安全门和状态显示问题，建立了真实自动飞行、数值分析、跨主机遥测及停流恢复证据。估计器仍未满足稳定注入准入，Active 保持关闭。项目尚未完成完整软件验收，本轮已按用户要求收尾。
 
-本地证据：`E:/MERIVUS-ftc-full-validation-20260909/`。核心索引为 `closing-evidence.json`、`estimator-sweep-baseline.csv`、`final-contracts.log`、`final-fmu.log`、`groundstation/live-backend-08-summary.json`。未执行的物理扰动源稿放在 `prepared/`，不作为已验证项目代码。
-
-VM 完整证据：`/home/cwkj/MERIVUS/test-artifacts/ftc-full-validation-20260909/`，保留各次 ULog、stdout、参数、源 HEAD、scenario、事件及脚本版本。`closing-evidence.json` 含每份 ULog 的 SHA-256。旧备份/tag/历史失败证据保留；现有测试会话已退出，未操作真实硬件。
+最终证据统一归档到 `E:/MERIVUS-archive-final-20260917/`。`ARCHIVE_INDEX.md` 说明来源与取舍，`MANIFEST.sha256` 校验归档内容；其中保留 ULog、stdout、参数、源 HEAD、scenario、事件、CSV/JSON、补丁和 Git bundle，不保留依赖缓存与构建树。现有测试会话已退出，未操作真实硬件。

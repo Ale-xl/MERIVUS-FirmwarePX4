@@ -140,4 +140,4 @@ motor/model/shadow/extreme/system + ftc_simulation_status
 PX4 MAVLink scheduler ~> serial/UDP/TCP ~> GroundStation VehicleFtcStatusFactGroup
 ```
 
-这条链是只读传输。它没有反向命令，不连接 Commander、setpoint 或 `actuator_motors`。详细字段、带宽和模式边界见 [FTC 遥测传输](FTC_TELEMETRY_TRANSPORT.md)。
+这条链是只读传输。它没有反向命令，不连接 Commander、setpoint 或 `actuator_motors`。详细字段、带宽和模式边界见 [FTC MAVLink 契约](../reference/FTC_MAVLINK_CONTRACT.md)。

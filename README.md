@@ -10,8 +10,8 @@ MERIVUS 是一个基于 PX4 v1.14 源码快照的多无人机飞控项目，主�
 - 仿真目标：`px4_sitl_default`
 - 构建环境：Ubuntu 22.04，或已经配好 PX4 v1.14 工具链的 Ubuntu；Windows 负责编辑、Git、GitNexus 和 QGroundControl 刷写
 - 编队：协议版本 `2`，支持包含 UAV-1 的单机、双机和六机分阶段验证
-- FTC：已实现观察、shadow 计算和断开的恢复候选；没有主动控制分配或恢复接管
-- 验证状态：仍处于研发和 Mock/SITL 准备阶段；当前分支没有完成可复现的 SITL、HITL、台架或飞行验证
+- FTC：已实现观察、Shadow、恢复候选以及默认关闭的主动分配/恢复路径；Active 状态为 `IMPLEMENTED_UNVERIFIED`
+- 验证状态：已有 Host、SITL、构建和遥测链路证据；Estimator 尚未稳定建立真实 SITL Baseline，未进入故障注入或 Active 验证
 
 ## 系统概览
 
@@ -31,7 +31,7 @@ GroundStation -> MAVLink PREPARE/COMMIT/RELEASE/ABORT -> swarm_node
 - [系统地图](docs/architecture/SYSTEM_MAP.md)
 - [代码来源地图](docs/architecture/CODE_OWNERSHIP_MAP.md)
 - [关键数据流](docs/architecture/DATA_FLOWS.md)
-- [FTC 架构与真实接管边界](docs/architecture/FTC_ARCHITECTURE.md)
+- [FTC 架构与真实接管边界](docs/extreme_control/FTC_ARCHITECTURE.md)
 - [当前模块状态](docs/PROJECT_STATUS.md)
 
 ## 快速构建
@@ -59,7 +59,7 @@ build/px4_fmu-v6c_default/px4_fmu-v6c_default.px4
 
 ## 安全说明
 
-- `FTC_` 的检测、shadow、恢复和 SITL 注入入口默认关闭；`FTC_CA_EN`、`FTC_REC_ACT` 当前没有真实控制路径。
+- `FTC_` 检测入口默认关闭；`FTC_CA_EN=0`、`FTC_REC_ACT=0`、`FTC_SIM_EN=0`。主动路径已有实现但未经闭环验证。
 - 编队 ABORT 请求 Hold/Loiter，不代表飞机已经安全降落。
 - 自定义固件首次上电和输出测试必须拆桨或采取等效防护；实机测试需要现场授权、急停和逐级验证。
 - 构建和部署必须记录主仓/子模块提交、工具链、构建目标及产物 SHA-256，不得在部署机直接改产物。

@@ -1,6 +1,6 @@
-> 历史测试资料：适用于文中记录的旧提交；当前软件契约及验证边界见 [阶段总结](FTC_SOFTWARE_STAGE_REPORT.md)。
+# FTC 人工验证
 
-# FTC 人工集成测试指南
+当前结论见 [验证总结](FTC_VALIDATION_SUMMARY.md)，安全边界见 [FTC 安全与限制](../extreme_control/FTC_SAFETY_AND_LIMITATIONS.md)。本文只规定后续复测顺序和停止条件。
 
 本文用于当前“只观测、影子计算、恢复候选”阶段的人工联调，操作顺序固定为：
 

@@ -1,4 +1,4 @@
-# MERIVUS uORB 与内部消息索引
+# FTC uORB 与内部消息索引
 
 ## FTC 消息
 

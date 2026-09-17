@@ -36,5 +36,5 @@
 ## 可追溯性边界
 
 - `upstream/release/1.14` 与产品导入历史没有共同祖先，不能用 `merge-base` 推导精确官方基线。
-- 现有内容哈希审计表明初始导入的 6,001 个 blob 中，5,725 个与本机 v1.14.4 同路径文件一致、116 个不同、160 个仅存在于导入快照；v1.14.4 另有 9 个文件。详见 `docs/extreme_control/LOCAL_MODIFICATIONS_AUDIT.md`。
-- 历史审计记录了相对 `3ec2f9f2c3` 的 64 个 FTC 变更路径；后续差异继续由 Git 提交追溯，当前验证范围见 [本轮报告](../testing/FTC_FULL_VALIDATION_REPORT.md)。
+- 现有内容哈希审计表明初始导入的 6,001 个 blob 中，5,725 个与本机 v1.14.4 同路径文件一致、116 个不同、160 个仅存在于导入快照；v1.14.4 另有 9 个文件。历史审计由 Git 和最终归档保留。
+- 历史审计记录了相对 `3ec2f9f2c3` 的 64 个 FTC 变更路径；后续差异继续由 Git 提交追溯，当前验证范围见 [验证总结](../testing/FTC_VALIDATION_SUMMARY.md)。

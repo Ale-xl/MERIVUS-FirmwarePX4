@@ -1,6 +1,6 @@
 # FTC 自动验证工具
 
-本目录用于隔离 SITL、Host 测试和结果分析，不启动真实硬件。实际结果见 `docs/testing/FTC_FULL_VALIDATION_REPORT.md`；脚本存在不代表对应场景通过。
+本目录用于隔离 SITL、Host 测试和结果分析，不启动真实硬件。实际结果见 `docs/testing/FTC_VALIDATION_SUMMARY.md`；脚本存在不代表对应场景通过。
 
 - `run_sitl.py`：创建独立 rootfs、参数、日志和 Gazebo 会话；默认关闭故障注入及两条 Active 路径。Baseline 门未通过时拒绝注入。正常机动和角运动机动可选；`--groundstation` 使用独立链路测试 FTC 停流及恢复。
 - `estimator_sweep.cpp`：41 个理想模型场景，输出 CSV 数值。间歇故障场景未达到准确跟踪要求，不能把整个 sweep 写成全部通过。

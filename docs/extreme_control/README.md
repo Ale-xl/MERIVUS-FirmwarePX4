@@ -1,5 +1,16 @@
-# FTC 工程入口
+# FTC 工程文档
 
-当前系统以 [FTC 软件契约](../architecture/FTC_ARCHITECTURE.md) 维护接口约束；[参数](PARAMETERS.md) 和 [遥测](../architecture/FTC_TELEMETRY_TRANSPORT.md) 分别维护配置与传输契约。[架构概览](FTC_MASTER_ARCHITECTURE.md)、[本轮报告](../testing/FTC_FULL_VALIDATION_REPORT.md) 和 [验证矩阵](../testing/FTC_VALIDATION_MATRIX.md) 汇总当前实现及证据边界；[阶段总结](../testing/FTC_SOFTWARE_STAGE_REPORT.md) 保留为此前阶段的记录。
+本目录是 FTC 设计的唯一入口。当前源码提交、验证结论和历史证据分别见 [验证总结](../testing/FTC_VALIDATION_SUMMARY.md)、[测试历史](../testing/FTC_TEST_HISTORY.md) 与 `E:/MERIVUS-archive-final-20260917/`。
 
-观察、估计、诊断、动态分配、恢复及独占仲裁已有软件实现。ACTIVE 默认关闭，验证状态为 IMPLEMENTED_UNVERIFIED；本目录 BASELINE_SNAPSHOT、CHANGELOG、LOCAL_MODIFICATIONS_AUDIT 和既有 SITL 测试记录属于历史证据，不能用于认证后续提交。
+- [系统架构](FTC_ARCHITECTURE.md)
+- [电机效能估计](FTC_ESTIMATOR.md)
+- [故障诊断](FTC_FAULT_DIAGNOSIS.md)
+- [控制分配与 Shadow](FTC_CONTROL.md)
+- [恢复候选与仲裁](FTC_RECOVERY.md)
+- [遥测与地面站](FTC_TELEMETRY_GROUNDSTATION.md)
+- [安全边界与已知限制](FTC_SAFETY_AND_LIMITATIONS.md)
+- [参数索引](../reference/FTC_PARAMETER_INDEX.md)
+- [uORB 索引](../reference/FTC_UORB_INDEX.md)
+- [MAVLink 契约](../reference/FTC_MAVLINK_CONTRACT.md)
+
+观察、估计、诊断、动态分配、恢复候选和独占仲裁已有实现。Active Allocation 与 Active Recovery 均为 `IMPLEMENTED_UNVERIFIED`，产品默认值保持 `FTC_CA_EN=0`、`FTC_REC_ACT=0`、`FTC_SIM_EN=0`。

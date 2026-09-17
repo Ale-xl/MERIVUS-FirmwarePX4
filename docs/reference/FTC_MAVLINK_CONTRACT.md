@@ -1,4 +1,4 @@
-# FTC 遥测 v2 契约
+# FTC MAVLink v2 契约
 
 更新：2026-09-09。`protocol_version=2`；传输为 MAVLink 2。两仓核心 XML 逐字节一致，SHA-256 为 `27d637cb3da357295f9b3f59467be07a13e2b63f6da040b3f78a3af93d9d7a12`。Firmware 使用 development 包装，GroundStation 使用 all 包装；上游 common 不改动。生成器锁定 MAVLink 子模块 `18955a04c7c7467e00ea42b704addb4a9c12b53a`，固定 PYTHONHASHSEED=0。
 
@@ -36,4 +36,4 @@ DIAGNOSTICS 增加条件数、真实预测残差、rigid_body_activity、更新/
 Firmware：`python3 Tools/merivus/verify_ftc_telemetry.py`。
 GroundStation：`tools/dev/test-ftc-telemetry-contract.ps1` 和 `tools/dev/generate-merivus-mavlink.ps1 -Check`（使用锁定生成器及 Python future 依赖）。
 
-本阶段协议检查、生成一致性和构建提供软件证据；新 v2 消息实际链路、断链恢复和 UI 回放尚未验证。所有 ACTIVE 默认关闭。
+协议检查、生成一致性和构建提供软件证据；实际 VM—Windows 链路已验证解码、3 秒过期与恢复，不能据此宣称绝对零丢包。UI 详情面板仍需人工视觉复核。所有 ACTIVE 默认关闭。
