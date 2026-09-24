@@ -111,3 +111,12 @@ src/systemcmds/topic_listener/listener_generated.cpp
 
 # colcon
 log/
+
+# Local credentials and validation artifacts
+.env
+.env.*
+!.env.example
+*.ulg
+*.ulog
+/artifacts/
+/.pytest_cache/

@@ -15,7 +15,7 @@
 ```bash
 mkdir -p ~/src
 cd ~/src
-git clone --recursive https://github.com/Merivus-Industrial/MERIVUS-FirmwarePX4.git FirmwarePX4
+git clone --recursive https://github.com/Ale-xl/MERIVUS-FirmwarePX4.git FirmwarePX4
 cd FirmwarePX4
 ```
 

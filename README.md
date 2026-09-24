@@ -4,6 +4,8 @@ MERIVUS 是一个基于 PX4 v1.14 源码快照的多无人机飞控项目，主�
 
 > 本仓库不是 PX4 官方发行版。产品历史从源码快照重新初始化，未保留精确的上游基线提交；上游和第三方许可证仍按原文件执行。
 
+维护者：**[Ale-xl](https://github.com/Ale-xl)**。产品历史与作者归属见 [贡献指南](CONTRIBUTING.md)。
+
 ## 当前边界
 
 - 产品固件目标：`px4_fmu-v6c_default`
@@ -37,7 +39,7 @@ GroundStation -> MAVLink PREPARE/COMMIT/RELEASE/ABORT -> swarm_node
 ## 快速构建
 
 ```bash
-git clone --recursive https://github.com/Merivus-Industrial/MERIVUS-FirmwarePX4.git FirmwarePX4
+git clone --recursive https://github.com/Ale-xl/MERIVUS-FirmwarePX4.git FirmwarePX4
 cd FirmwarePX4
 make px4_fmu-v6c_default
 ```
@@ -64,4 +66,4 @@ build/px4_fmu-v6c_default/px4_fmu-v6c_default.px4
 - 自定义固件首次上电和输出测试必须拆桨或采取等效防护；实机测试需要现场授权、急停和逐级验证。
 - 构建和部署必须记录主仓/子模块提交、工具链、构建目标及产物 SHA-256，不得在部署机直接改产物。
 
-配套地面站：[Merivus-Industrial/MERIVUS-GroundStation](https://github.com/Merivus-Industrial/MERIVUS-GroundStation)。许可证见 [LICENSE](LICENSE)。
+配套地面站：[Ale-xl/MERIVUS-GroundStation](https://github.com/Ale-xl/MERIVUS-GroundStation)。许可证见 [LICENSE](LICENSE)。
