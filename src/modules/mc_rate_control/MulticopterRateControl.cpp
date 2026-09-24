@@ -213,8 +213,11 @@ MulticopterRateControl::Run()
 				_rate_control.setSaturationStatus(saturation_positive, saturation_negative);
 			}
 
-			// run rate controller
-			const Vector3f att_control = _rate_control.update(rates, _rates_setpoint, angular_accel, dt, _maybe_landed || _landed);
+			Vector3f selected_rates = _rates_setpoint;
+			Vector3f selected_thrust = _thrust_setpoint;
+			_ftc_input.select(hrt_absolute_time(), dt, vehicle_rates_setpoint.timestamp, _vehicle_status,
+				_vehicle_control_mode, _landed, selected_rates, selected_thrust);
+			const Vector3f att_control = _rate_control.update(rates, selected_rates, angular_accel, dt, _maybe_landed || _landed);
 
 			// publish rate controller status
 			rate_ctrl_status_s rate_ctrl_status{};
@@ -226,7 +229,7 @@ MulticopterRateControl::Run()
 			vehicle_thrust_setpoint_s vehicle_thrust_setpoint{};
 			vehicle_torque_setpoint_s vehicle_torque_setpoint{};
 
-			_thrust_setpoint.copyTo(vehicle_thrust_setpoint.xyz);
+			selected_thrust.copyTo(vehicle_thrust_setpoint.xyz);
 			vehicle_torque_setpoint.xyz[0] = PX4_ISFINITE(att_control(0)) ? att_control(0) : 0.f;
 			vehicle_torque_setpoint.xyz[1] = PX4_ISFINITE(att_control(1)) ? att_control(1) : 0.f;
 			vehicle_torque_setpoint.xyz[2] = PX4_ISFINITE(att_control(2)) ? att_control(2) : 0.f;
