@@ -9,6 +9,10 @@ from pathlib import Path
 import statistics
 
 
+class InvalidTruthFrame(ValueError):
+    """The logged truth is not the local, centimetre-resolution SITL frame."""
+
+
 def dataset(log, name):
     matches = [item for item in log.data_list if item.name == name and item.multi_id == 0]
     if len(matches) != 1:
@@ -41,19 +45,23 @@ def score_arrays(truth, reference, allocator, motors, status, start_us, end_us,
         timestamp = int(timestamp)
         if timestamp < start_us or timestamp >= end_us:
             continue
+        truth_position = [float(truth[axis][i]) for axis in ("x", "y", "z")]
+        if not all(math.isfinite(value) and abs(value) < 100.0 for value in truth_position):
+            raise InvalidTruthFrame("groundtruth coordinate frame invalid for local hover scoring")
         j = sample_at(reference, timestamp, 150_000)
         k = sample_at(allocator, timestamp, 300_000)
         m = sample_at(motors, timestamp, 150_000)
         s = sample_at(status, timestamp, 1_000_000)
         if j is None or k is None or m is None or s is None:
             continue
-        error = [float(truth[axis][i]) - float(reference[axis][j]) for axis in ("x", "y", "z")]
+        error = [value - float(reference[axis][j])
+                 for value, axis in zip(truth_position, ("x", "y", "z"))]
         controls = [float(motors[f"control[{axis}]"][m]) for axis in range(4)]
         if not all(math.isfinite(value) for value in error + controls):
             raise ValueError("nonfinite truth, reference, or motor output")
         xy_errors.append(math.hypot(error[0], error[1]))
         z_errors.append(abs(error[2]))
-        truth_points.append((timestamp, *[float(truth[axis][i]) for axis in ("x", "y", "z")]))
+        truth_points.append((timestamp, *truth_position))
         efforts.append(sum(value * value for value in controls))
         saturation += not (bool(allocator["thrust_setpoint_achieved"][k])
                            and bool(allocator["torque_setpoint_achieved"][k]))

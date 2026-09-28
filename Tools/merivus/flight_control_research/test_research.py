@@ -105,6 +105,12 @@ class EvaluationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "insufficient"):
             evaluate.score_arrays(truth, reference, allocator, motors, status, 0, 20_000_000)
 
+    def test_rejects_global_groundtruth_without_centimetre_resolution(self):
+        data = telemetry()
+        data[0]["x"] = [5_286_006.0] * 1000
+        with self.assertRaisesRegex(evaluate.InvalidTruthFrame, "coordinate frame"):
+            evaluate.score_arrays(*data, 0, 20_000_000)
+
     def test_stationkeeping_metric_uses_initial_truth_anchor(self):
         data = telemetry(error=0.0)
         data[0]["x"] = [0.0] * 100 + [0.2] * 900

@@ -38,6 +38,14 @@ def mode_order_for_seed(seed):
     return ("active", "off") if seed % 2 else ("off", "active")
 
 
+def run_trial(output, dialect, scenario, mode, seed):
+    run([sys.executable, str(SPEC.with_name("run_sitl.py")), "--repo", str(ROOT),
+         "--output", str(output), "--dialect", str(dialect),
+         "--mode", mode, "--scenario", scenario, "--seed", str(seed)])
+    ulog = Path((output / "ulog_path.txt").read_text(encoding="utf-8").strip())
+    return ulog, evaluate.evaluate(ulog, output / "windows.json")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -67,18 +75,32 @@ def main():
         "seeds": args.seeds,
         "mode_order_by_seed": {str(seed): mode_order_for_seed(seed)
                                for seed in args.seeds},
+        "maximum_truth_frame_attempts": 3,
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     run([sys.executable, "-m", "unittest", "discover", "-s", str(SPEC.parent), "-p", "test_research.py"])
     run(["make", "px4_sitl_default", "-j4"])
     run(["make", "px4_sitl_default", "sitl_gazebo-classic", "-j4"])
-    shadow_output = output / f"shadow_gust_seed{args.seeds[0]}"
-    run([sys.executable, str(SPEC.with_name("run_sitl.py")), "--repo", str(ROOT),
-         "--output", str(shadow_output), "--dialect", str(args.dialect.resolve()),
-         "--mode", "shadow", "--scenario", "gust", "--seed", str(args.seeds[0])])
-    shadow_ulog = Path((shadow_output / "ulog_path.txt").read_text(encoding="utf-8").strip())
+    invalid_trials = []
+
+    def record_invalid(seed, attempt, trial_output, error):
+        invalid_trials.append({"seed": seed, "attempt": attempt,
+                               "trial": str(trial_output), "reason": str(error)})
+        (output / "invalid_trials.json").write_text(
+            json.dumps(invalid_trials, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    for attempt in range(1, 4):
+        shadow_output = output / f"shadow_gust_seed{args.seeds[0]}_attempt{attempt}"
+        try:
+            shadow_ulog, shadow_metrics = run_trial(shadow_output, args.dialect.resolve(),
+                                                    "gust", "shadow", args.seeds[0])
+            break
+        except evaluate.InvalidTruthFrame as error:
+            record_invalid(args.seeds[0], attempt, shadow_output, error)
+    else:
+        raise RuntimeError("shadow truth frame invalid after three attempts")
+
     shadow_result = shadow.verify(shadow_ulog, shadow_output / "windows.json", SPEC)
-    shadow_metrics = evaluate.evaluate(shadow_ulog, shadow_output / "windows.json")
     if not shadow_metrics["gust_hover"]["hard_gate_passed"]:
         raise RuntimeError("shadow gust trial failed the hover hard gate")
     (output / "shadow.json").write_text(json.dumps({"correction": shadow_result,
@@ -86,23 +108,32 @@ def main():
                                           encoding="utf-8")
     paired = []
     for seed in args.seeds:
-        baseline, active = {}, {}
-        quiescence = {}
-        collections = {"off": baseline, "active": active}
-        for scenario in ("normal", "wind", "gust", "payload"):
-            for mode in mode_order_for_seed(seed):
-                collection = collections[mode]
-                trial_output = output / f"seed{seed}_{scenario}_{mode}"
-                run([sys.executable, str(SPEC.with_name("run_sitl.py")), "--repo", str(ROOT),
-                     "--output", str(trial_output), "--dialect", str(args.dialect.resolve()),
-                     "--mode", mode, "--scenario", scenario, "--seed", str(seed)])
-                ulog = Path((trial_output / "ulog_path.txt").read_text(encoding="utf-8").strip())
-                collection.update(evaluate.evaluate(ulog, trial_output / "windows.json"))
-                if mode == "active" and scenario != "gust":
-                    quiescence[scenario + "_hover"] = shadow.verify_quiescent(
-                        ulog, trial_output / "windows.json")
+        for attempt in range(1, 4):
+            baseline, active = {}, {}
+            quiescence = {}
+            collections = {"off": baseline, "active": active}
+            try:
+                for scenario in ("normal", "wind", "gust", "payload"):
+                    for mode in mode_order_for_seed(seed):
+                        collection = collections[mode]
+                        trial_output = output / f"seed{seed}_attempt{attempt}_{scenario}_{mode}"
+                        try:
+                            ulog, metrics = run_trial(trial_output, args.dialect.resolve(),
+                                                      scenario, mode, seed)
+                        except evaluate.InvalidTruthFrame as error:
+                            record_invalid(seed, attempt, trial_output, error)
+                            raise
+                        collection.update(metrics)
+                        if mode == "active" and scenario != "gust":
+                            quiescence[scenario + "_hover"] = shadow.verify_quiescent(
+                                ulog, trial_output / "windows.json")
+            except evaluate.InvalidTruthFrame:
+                continue
+            break
+        else:
+            raise RuntimeError(f"seed {seed} truth frame invalid after three attempts")
         decision = evaluate.compare(baseline, active, quiescence)
-        paired.append({"seed": seed, "baseline": baseline, "active": active,
+        paired.append({"seed": seed, "attempt": attempt, "baseline": baseline, "active": active,
                        "quiescence": quiescence, "decision": decision})
         (output / "results.json").write_text(json.dumps(paired, indent=2, sort_keys=True) + "\n",
                                                 encoding="utf-8")
