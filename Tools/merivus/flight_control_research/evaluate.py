@@ -134,33 +134,26 @@ def evaluate(ulog_path, windows_path):
     return result
 
 
-def compare(baseline, candidate):
+def compare(baseline, candidate, quiescence):
     if baseline.keys() != candidate.keys():
         raise ValueError("baseline and candidate windows differ")
     if not all(item["hard_gate_passed"] for item in baseline.values()):
         return {"retain": False, "reason": "baseline hard gate failed"}
     if not all(item["hard_gate_passed"] for item in candidate.values()):
         return {"retain": False, "reason": "candidate hard gate failed"}
-    normal = "normal_hover"
-    if normal not in baseline:
-        raise ValueError("normal_hover window required")
-    for key, margin in (("station_xy_rmse_m", 0.015), ("station_z_rmse_m", 0.020)):
-        if candidate[normal][key] > baseline[normal][key] + margin:
-            return {"retain": False, "reason": f"normal hover regression: {key}"}
-    for name in baseline:
-        if candidate[name]["motor_effort_mean"] > baseline[name]["motor_effort_mean"] * 1.05:
-            return {"retain": False, "reason": f"motor effort regression: {name}"}
-    for name in ("wind_hover", "payload_hover"):
-        if name not in baseline:
-            raise ValueError(f"required stress window missing: {name}")
-        for key in ("station_xy_rmse_m", "station_z_rmse_m"):
-            if candidate[name][key] > baseline[name][key] + 0.020:
-                return {"retain": False, "reason": f"stress regression: {name} {key}"}
+    quiet_scenarios = {"normal_hover", "wind_hover", "payload_hover"}
+    if not quiet_scenarios.issubset(baseline) or set(quiescence) != quiet_scenarios:
+        raise ValueError("normal, wind and payload quiescence required")
+    if any(item["max_abs_m_s2"] > 0.0001 or item["scored_samples"] < 500
+           for item in quiescence.values()):
+        return {"retain": False, "reason": "candidate active outside gust"}
     gust = "gust_hover"
     if gust not in baseline:
         raise ValueError("gust_hover window required")
     if candidate[gust]["event_z_rmse_m"] > baseline[gust]["event_z_rmse_m"] + 0.050:
         return {"retain": False, "reason": "gust vertical regression"}
+    if candidate[gust]["motor_effort_mean"] > baseline[gust]["motor_effort_mean"] * 1.05:
+        return {"retain": False, "reason": "gust motor effort regression"}
     if candidate[gust]["event_xy_rmse_m"] > baseline[gust]["event_xy_rmse_m"] - 0.080:
         return {"retain": False, "reason": "insufficient gust XY improvement"}
     if candidate[gust]["recovery_xy_rmse_m"] > baseline[gust]["recovery_xy_rmse_m"] - 0.050:

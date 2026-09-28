@@ -132,9 +132,11 @@ class EvaluationTest(unittest.TestCase):
                             "payload_hover": dict(stress),
                             "gust_hover": dict(gust, event_xy_rmse_m=0.3,
                                                recovery_xy_rmse_m=0.2)}
-        self.assertTrue(evaluate.compare(baseline, candidate_result)["retain"])
-        candidate_result["normal_hover"]["station_z_rmse_m"] = 0.13
-        self.assertFalse(evaluate.compare(baseline, candidate_result)["retain"])
+        quiet = {name: {"scored_samples": 1000, "max_abs_m_s2": 0.0}
+                 for name in ("normal_hover", "wind_hover", "payload_hover")}
+        self.assertTrue(evaluate.compare(baseline, candidate_result, quiet)["retain"])
+        quiet["wind_hover"]["max_abs_m_s2"] = 0.01
+        self.assertFalse(evaluate.compare(baseline, candidate_result, quiet)["retain"])
 
     def test_gust_improvement_must_be_in_the_event_window(self):
         normal = {"hard_gate_passed": True, "station_xy_rmse_m": 0.1,
@@ -148,10 +150,12 @@ class EvaluationTest(unittest.TestCase):
                             "wind_hover": dict(wind, station_xy_rmse_m=0.3),
                             "payload_hover": dict(wind),
                             "gust_hover": dict(gust)}
-        self.assertFalse(evaluate.compare(baseline, candidate_result)["retain"])
+        quiet = {name: {"scored_samples": 1000, "max_abs_m_s2": 0.0}
+                 for name in ("normal_hover", "wind_hover", "payload_hover")}
+        self.assertFalse(evaluate.compare(baseline, candidate_result, quiet)["retain"])
         candidate_result["gust_hover"]["event_xy_rmse_m"] = 0.3
         candidate_result["gust_hover"]["recovery_xy_rmse_m"] = 0.2
-        self.assertTrue(evaluate.compare(baseline, candidate_result)["retain"])
+        self.assertTrue(evaluate.compare(baseline, candidate_result, quiet)["retain"])
 
 
 class ResearchTest(unittest.TestCase):
@@ -165,6 +169,18 @@ class ResearchTest(unittest.TestCase):
 
 
 class ShadowTest(unittest.TestCase):
+    def test_quiescence_checks_pre_window_correction_and_logging(self):
+        name = b"AFCR_DA\0\0\0"
+        data = {"timestamp": [index * 20_000 for index in range(1000)],
+                "x": [0.0] * 1000, "y": [0.0] * 1000, "z": [0.0] * 1000}
+        for index, value in enumerate(name):
+            data[f"name[{index}]"] = [value] * 1000
+        window = {"start_s": 5, "end_s": 20}
+        self.assertEqual(shadow.verify_quiescent_samples(data, window)["scored_samples"], 750)
+        data["x"][10] = 0.01
+        with self.assertRaisesRegex(ValueError, "active outside gust"):
+            shadow.verify_quiescent_samples(data, window)
+
     def test_correction_is_logged_and_bounded(self):
         name = b"AFCR_DA\0\0\0"
         data = {"timestamp": [index * 20_000 for index in range(600)],

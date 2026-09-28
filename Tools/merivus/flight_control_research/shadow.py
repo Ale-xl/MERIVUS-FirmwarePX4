@@ -56,6 +56,45 @@ def verify(ulog_path, windows_path, spec_path):
     return verify_samples(matches[0].data, windows[0], spec)
 
 
+def verify_quiescent_samples(data, window):
+    start = int(window["start_s"] * 1_000_000)
+    end = int(window["end_s"] * 1_000_000)
+    recorded = scored = 0
+    peak = 0.0
+    for index, timestamp in enumerate(data["timestamp"]):
+        if int(timestamp) >= end:
+            continue
+        name = bytes(int(data[f"name[{byte}]"][index]) for byte in range(10)).split(b"\0", 1)[0]
+        if name != b"AFCR_DA":
+            continue
+        correction = [float(data[axis][index]) for axis in "xyz"]
+        if not all(math.isfinite(value) for value in correction):
+            raise ValueError("candidate correction contains a nonfinite value")
+        recorded += 1
+        scored += int(timestamp) >= start
+        peak = max(peak, *(abs(value) for value in correction))
+    if scored < 500:
+        raise ValueError(f"candidate correction logging insufficient: scored={scored}")
+    if peak > 0.0001:
+        raise ValueError(f"candidate correction active outside gust: peak={peak}")
+    return {"recorded_samples": recorded, "scored_samples": scored,
+            "max_abs_m_s2": peak}
+
+
+def verify_quiescent(ulog_path, windows_path):
+    from pyulog import ULog
+
+    windows = json.loads(windows_path.read_text(encoding="utf-8"))
+    if len(windows) != 1 or windows[0]["name"] not in (
+            "normal_hover", "wind_hover", "payload_hover"):
+        raise ValueError("one non-gust hover window required")
+    log = ULog(str(ulog_path))
+    matches = [item for item in log.data_list if item.name == "debug_vect" and item.multi_id == 0]
+    if len(matches) != 1:
+        raise ValueError("candidate correction debug_vect missing or ambiguous")
+    return verify_quiescent_samples(matches[0].data, windows[0])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ulog", type=Path, required=True)

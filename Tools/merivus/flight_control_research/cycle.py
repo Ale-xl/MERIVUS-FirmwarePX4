@@ -87,6 +87,7 @@ def main():
     paired = []
     for seed in args.seeds:
         baseline, active = {}, {}
+        quiescence = {}
         collections = {"off": baseline, "active": active}
         for scenario in ("normal", "wind", "gust", "payload"):
             for mode in mode_order_for_seed(seed):
@@ -97,8 +98,12 @@ def main():
                      "--mode", mode, "--scenario", scenario, "--seed", str(seed)])
                 ulog = Path((trial_output / "ulog_path.txt").read_text(encoding="utf-8").strip())
                 collection.update(evaluate.evaluate(ulog, trial_output / "windows.json"))
-        decision = evaluate.compare(baseline, active)
-        paired.append({"seed": seed, "baseline": baseline, "active": active, "decision": decision})
+                if mode == "active" and scenario != "gust":
+                    quiescence[scenario + "_hover"] = shadow.verify_quiescent(
+                        ulog, trial_output / "windows.json")
+        decision = evaluate.compare(baseline, active, quiescence)
+        paired.append({"seed": seed, "baseline": baseline, "active": active,
+                       "quiescence": quiescence, "decision": decision})
         (output / "results.json").write_text(json.dumps(paired, indent=2, sort_keys=True) + "\n",
                                                 encoding="utf-8")
     retained = all(item["decision"]["retain"] for item in paired)
