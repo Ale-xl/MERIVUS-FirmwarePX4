@@ -34,6 +34,10 @@ def changed_files():
     return set(changed + untracked)
 
 
+def mode_order_for_seed(seed):
+    return ("active", "off") if seed % 2 else ("off", "active")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -61,6 +65,8 @@ def main():
         "scripts_sha256": {name: hashlib.sha256(SPEC.with_name(name).read_bytes()).hexdigest()
                            for name in scripts},
         "seeds": args.seeds,
+        "mode_order_by_seed": {str(seed): mode_order_for_seed(seed)
+                               for seed in args.seeds},
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     run([sys.executable, "-m", "unittest", "discover", "-s", str(SPEC.parent), "-p", "test_research.py"])
@@ -81,8 +87,10 @@ def main():
     paired = []
     for seed in args.seeds:
         baseline, active = {}, {}
+        collections = {"off": baseline, "active": active}
         for scenario in ("normal", "wind", "gust", "payload"):
-            for mode, collection in (("off", baseline), ("active", active)):
+            for mode in mode_order_for_seed(seed):
+                collection = collections[mode]
                 trial_output = output / f"seed{seed}_{scenario}_{mode}"
                 run([sys.executable, str(SPEC.with_name("run_sitl.py")), "--repo", str(ROOT),
                      "--output", str(trial_output), "--dialect", str(args.dialect.resolve()),

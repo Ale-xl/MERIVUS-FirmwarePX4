@@ -144,24 +144,28 @@ def compare(baseline, candidate):
     normal = "normal_hover"
     if normal not in baseline:
         raise ValueError("normal_hover window required")
-    for key in ("station_xy_rmse_m", "station_z_rmse_m", "motor_effort_mean"):
-        limit = 1.05 if key == "motor_effort_mean" else 1.15
-        if candidate[normal][key] > baseline[normal][key] * limit:
+    for key, margin in (("station_xy_rmse_m", 0.015), ("station_z_rmse_m", 0.020)):
+        if candidate[normal][key] > baseline[normal][key] + margin:
             return {"retain": False, "reason": f"normal hover regression: {key}"}
-    stresses = [name for name in baseline if name != normal]
-    if not stresses:
-        return {"retain": False, "reason": "no perturbation window"}
-    for name in stresses:
+    for name in baseline:
+        if candidate[name]["motor_effort_mean"] > baseline[name]["motor_effort_mean"] * 1.05:
+            return {"retain": False, "reason": f"motor effort regression: {name}"}
+    for name in ("wind_hover", "payload_hover"):
+        if name not in baseline:
+            raise ValueError(f"required stress window missing: {name}")
         for key in ("station_xy_rmse_m", "station_z_rmse_m"):
-            if candidate[name][key] > baseline[name][key] * 1.2:
+            if candidate[name][key] > baseline[name][key] + 0.020:
                 return {"retain": False, "reason": f"stress regression: {name} {key}"}
-    if "gust_hover" in baseline:
-        improved = any(candidate["gust_hover"][key] < baseline["gust_hover"][key] * 0.9
-                       for key in ("event_xy_rmse_m", "event_z_rmse_m"))
-    else:
-        improved = any(candidate[name][key] < baseline[name][key] * 0.9
-                       for name in stresses for key in ("station_xy_rmse_m", "station_z_rmse_m"))
-    return {"retain": improved, "reason": "stress improvement" if improved else "no material stress improvement"}
+    gust = "gust_hover"
+    if gust not in baseline:
+        raise ValueError("gust_hover window required")
+    if candidate[gust]["event_z_rmse_m"] > baseline[gust]["event_z_rmse_m"] + 0.050:
+        return {"retain": False, "reason": "gust vertical regression"}
+    if candidate[gust]["event_xy_rmse_m"] > baseline[gust]["event_xy_rmse_m"] - 0.080:
+        return {"retain": False, "reason": "insufficient gust XY improvement"}
+    if candidate[gust]["recovery_xy_rmse_m"] > baseline[gust]["recovery_xy_rmse_m"] - 0.050:
+        return {"retain": False, "reason": "insufficient gust recovery improvement"}
+    return {"retain": True, "reason": "gust displacement and recovery improved"}
 
 
 def main():

@@ -4,6 +4,7 @@ from pathlib import Path
 import unittest
 
 import candidate
+import cycle
 import evaluate
 import research
 import run_sitl
@@ -46,6 +47,10 @@ def telemetry(error=0.1, saturated=False):
 
 
 class EvaluationTest(unittest.TestCase):
+    def test_trial_order_counterbalances_odd_and_even_seeds(self):
+        self.assertEqual(cycle.mode_order_for_seed(11), ("active", "off"))
+        self.assertEqual(cycle.mode_order_for_seed(12), ("off", "active"))
+
     def test_wind_scenarios_configure_the_gazebo_plugin(self):
         source = (Path(__file__).parents[3] /
                   "Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/windy.world")
@@ -106,23 +111,33 @@ class EvaluationTest(unittest.TestCase):
         normal = {"hard_gate_passed": True, "station_xy_rmse_m": 0.1, "station_z_rmse_m": 0.1,
                   "motor_effort_mean": 1.0}
         stress = dict(normal, station_xy_rmse_m=0.4)
-        baseline = {"normal_hover": normal, "wind_hover": stress}
-        candidate_result = {"normal_hover": dict(normal), "wind_hover": dict(stress, station_xy_rmse_m=0.3)}
+        gust = dict(normal, event_xy_rmse_m=0.4, event_z_rmse_m=0.2,
+                    recovery_xy_rmse_m=0.3)
+        baseline = {"normal_hover": normal, "wind_hover": stress,
+                    "payload_hover": stress, "gust_hover": gust}
+        candidate_result = {"normal_hover": dict(normal), "wind_hover": dict(stress),
+                            "payload_hover": dict(stress),
+                            "gust_hover": dict(gust, event_xy_rmse_m=0.3,
+                                               recovery_xy_rmse_m=0.2)}
         self.assertTrue(evaluate.compare(baseline, candidate_result)["retain"])
-        candidate_result["normal_hover"]["station_z_rmse_m"] = 0.2
+        candidate_result["normal_hover"]["station_z_rmse_m"] = 0.13
         self.assertFalse(evaluate.compare(baseline, candidate_result)["retain"])
 
     def test_gust_improvement_must_be_in_the_event_window(self):
         normal = {"hard_gate_passed": True, "station_xy_rmse_m": 0.1,
                   "station_z_rmse_m": 0.1, "motor_effort_mean": 1.0}
         wind = dict(normal, station_xy_rmse_m=0.4)
-        gust = dict(normal, event_xy_rmse_m=0.4, event_z_rmse_m=0.2)
-        baseline = {"normal_hover": normal, "wind_hover": wind, "gust_hover": gust}
+        gust = dict(normal, event_xy_rmse_m=0.4, event_z_rmse_m=0.2,
+                    recovery_xy_rmse_m=0.3)
+        baseline = {"normal_hover": normal, "wind_hover": wind,
+                    "payload_hover": dict(wind), "gust_hover": gust}
         candidate_result = {"normal_hover": dict(normal),
                             "wind_hover": dict(wind, station_xy_rmse_m=0.3),
+                            "payload_hover": dict(wind),
                             "gust_hover": dict(gust)}
         self.assertFalse(evaluate.compare(baseline, candidate_result)["retain"])
         candidate_result["gust_hover"]["event_xy_rmse_m"] = 0.3
+        candidate_result["gust_hover"]["recovery_xy_rmse_m"] = 0.2
         self.assertTrue(evaluate.compare(baseline, candidate_result)["retain"])
 
 
