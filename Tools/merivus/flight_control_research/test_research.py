@@ -16,16 +16,15 @@ class CandidateTest(unittest.TestCase):
     def test_checked_in_header_matches_graph(self):
         header = Path(__file__).parents[3] / "src/modules/mc_pos_control/PositionControl/ResearchCandidateSpec.hpp"
         self.assertEqual(header.read_text(encoding="utf-8"), candidate.generate(self.spec))
-        self.assertIn("1.0f", candidate.generate(self.spec))
+        self.assertIn("static constexpr float maximum_correction = 0.5f;", candidate.generate(self.spec))
 
     def test_rejects_unit_mismatch_and_unbounded_output(self):
         wrong = copy.deepcopy(self.spec)
-        wrong["nodes"][2]["input"] = "residual"
-        wrong["nodes"][2]["op"] = "velocity_gain"
+        wrong["nodes"][5]["op"] = "velocity_gain"
         with self.assertRaisesRegex(ValueError, "expected velocity"):
             candidate.validate(wrong)
         wrong = copy.deepcopy(self.spec)
-        wrong["output"] = "compensation"
+        wrong["output"] = "combined"
         with self.assertRaisesRegex(ValueError, "final limit"):
             candidate.validate(wrong)
 
