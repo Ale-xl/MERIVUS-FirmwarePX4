@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""Run one isolated Gazebo Classic hover trial with a fixed mode and airframe."""
+
+import argparse
+import importlib.util
+import json
+import math
+import os
+from pathlib import Path
+import signal
+import socket
+import subprocess
+import time
+import xml.etree.ElementTree as ET
+
+
+class Trial:
+    def __init__(self, args):
+        self.args = args
+        self.repo = args.repo.resolve()
+        self.output = args.output.resolve()
+        self.output.mkdir(parents=True, exist_ok=False)
+        self.rootfs = self.output / "rootfs"
+        self.rootfs.mkdir()
+        self.build = self.repo / "build/px4_sitl_default"
+        if not (self.build / "bin/px4").is_file():
+            raise FileNotFoundError("build/px4_sitl_default/bin/px4")
+        module = importlib.util.spec_from_file_location("afcr_mavlink", args.dialect)
+        dialect = importlib.util.module_from_spec(module)
+        module.loader.exec_module(dialect)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind(("127.0.0.1", 14650))
+        self.socket.setblocking(False)
+        self.reader = dialect.MAVLink(None)
+        self.writer = dialect.MAVLink(self, srcSystem=255, srcComponent=190)
+        self.latest = {}
+        self.sim_time = 0.0
+        self.last_manual = 0.0
+        self.last_heartbeat = 0.0
+        self.processes = []
+        self.streams = []
+        self.env = dict(os.environ)
+        self.env.update(PX4_SIM_MODEL="gazebo-classic_iris", MERIVUS_AFCR_MODE=args.mode,
+                        PX4_SIM_SPEED_FACTOR="1", PX4_SYS_AUTOSTART="10015",
+                        GAZEBO_MASTER_URI="http://127.0.0.1:11459", GAZEBO_MODEL_DATABASE_URI="")
+        gazebo = self.repo / "Tools/simulation/gazebo-classic/sitl_gazebo-classic"
+        self.env["GAZEBO_PLUGIN_PATH"] = str(self.build / "build_gazebo-classic")
+        self.env["GAZEBO_MODEL_PATH"] = str(gazebo / "models")
+        self.env["LD_LIBRARY_PATH"] = self.env.get("LD_LIBRARY_PATH", "") + ":" + self.env["GAZEBO_PLUGIN_PATH"]
+        config = self.output / "config"
+        config.mkdir()
+        self.env["PATH"] = str(config) + ":" + self.env["PATH"]
+        config.joinpath("px4-rc.mavlink").write_text(
+            "mavlink start -x -u 18670 -o 14650 -r 4000000 -f\n"
+            "mavlink stream -r 20 -s LOCAL_POSITION_NED -u 18670\n", encoding="utf-8")
+        config.joinpath("px4-rc.params").write_text(
+            "param set COM_RC_IN_MODE 1\nparam set SDLOG_MODE 2\nparam set SDLOG_PROFILE 163\n", encoding="utf-8")
+        world = gazebo / "worlds" / ("windy.world" if args.scenario == "wind" else "empty.world")
+        if args.scenario == "wind":
+            text = world.read_text(encoding="utf-8")
+            direction = "1 0 0" if args.seed % 2 else "0 1 0"
+            text = text.replace("<windDirectionMean>0 1 0</windDirectionMean>",
+                                f"<windDirectionMean>{direction}</windDirectionMean>")
+            world = self.output / "world.world"
+            world.write_text(text, encoding="utf-8")
+        model = gazebo / "models/iris/iris.sdf"
+        if args.scenario == "payload":
+            tree = ET.parse(model)
+            inertial = tree.find(".//model/link[@name='base_link']/inertial")
+            if inertial is None or inertial.find("mass") is None:
+                raise ValueError("iris base_link inertia not found")
+            inertial.find("mass").text = "1.8"
+            for axis in ("ixx", "iyy", "izz"):
+                field = inertial.find("inertia/" + axis)
+                if field is not None:
+                    field.text = str(float(field.text) * 1.2)
+            model = self.output / "iris_payload.sdf"
+            tree.write(model, encoding="unicode", xml_declaration=True)
+        self.world = world
+        self.model = model
+        (self.output / "trial.json").write_text(json.dumps({
+            "mode": args.mode, "scenario": args.scenario, "seed": args.seed,
+            "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=self.repo, text=True).strip(),
+            "model": str(model), "world": str(world)
+        }, indent=2) + "\n", encoding="utf-8")
+
+    def write(self, data):
+        self.socket.sendto(data, ("127.0.0.1", 18670))
+
+    def spawn(self, command, name):
+        stream = (self.output / (name + ".log")).open("w", encoding="utf-8")
+        self.streams.append(stream)
+        process = subprocess.Popen(command, cwd=self.rootfs, env=self.env, stdout=stream,
+                                   stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
+        self.processes.append(process)
+
+    def cli(self, module, *args):
+        return subprocess.run([str(self.build / "bin" / ("px4-" + module)), *map(str, args)],
+                              cwd=self.rootfs, env=self.env, capture_output=True, text=True, timeout=10)
+
+    def pump(self):
+        now = time.monotonic()
+        if now - self.last_heartbeat > 0.4:
+            self.writer.heartbeat_send(6, 8, 0, 0, 4)
+            self.last_heartbeat = now
+        if now - self.last_manual > 0.02:
+            self.writer.manual_control_send(1, 0, 0, 500, 0, 0)
+            self.last_manual = now
+        while True:
+            try:
+                packet, _ = self.socket.recvfrom(65535)
+            except BlockingIOError:
+                break
+            for message in self.reader.parse_buffer(packet) or []:
+                if message.get_type() != "BAD_DATA":
+                    self.latest[message.get_type()] = message
+                    if message.get_type() == "LOCAL_POSITION_NED":
+                        self.sim_time = message.time_boot_ms / 1000.0
+        time.sleep(0.005)
+
+    def wait_for(self, seconds):
+        start = self.sim_time
+        deadline = time.monotonic() + max(seconds * 3, 60)
+        while self.sim_time - start < seconds:
+            if time.monotonic() > deadline:
+                raise TimeoutError("SITL time did not advance")
+            self.pump()
+
+    def run(self):
+        self.spawn(["gzserver", "--verbose", str(self.world)], "gazebo")
+        time.sleep(3)
+        result = subprocess.run(["gz", "model", "--spawn-file=" + str(self.model),
+                                 "--model-name=iris", "-x", "0", "-y", "0", "-z", ".5"],
+                                env=self.env, capture_output=True, timeout=30)
+        (self.output / "spawn.log").write_bytes(result.stdout + result.stderr)
+        if result.returncode:
+            raise RuntimeError("Gazebo model spawn failed")
+        self.spawn([str(self.build / "bin/px4"), "-d", "-w", str(self.rootfs), str(self.build / "etc")], "px4")
+        deadline = time.monotonic() + 60
+        while "LOCAL_POSITION_NED" not in self.latest:
+            if time.monotonic() > deadline:
+                raise TimeoutError("PX4 local position unavailable")
+            self.pump()
+        self.wait_for(12)
+        self.writer.command_long_send(1, 1, 400, 0, 1, 0, 0, 0, 0, 0, 0)
+        self.wait_for(2)
+        if self.cli("commander", "takeoff").returncode:
+            raise RuntimeError("PX4 takeoff command failed")
+        self.wait_for(20)
+        position = self.latest.get("LOCAL_POSITION_NED")
+        if position is None or not math.isfinite(position.z) or -position.z < 2:
+            raise RuntimeError("takeoff did not reach hover altitude")
+        start = self.sim_time
+        self.wait_for(25)
+        end = self.sim_time
+        (self.output / "windows.json").write_text(json.dumps([
+            {"name": "normal_hover" if self.args.scenario == "normal" else self.args.scenario + "_hover",
+             "start_s": start + 5, "end_s": end - 5}
+        ], indent=2) + "\n", encoding="utf-8")
+        self.cli("commander", "land")
+        self.wait_for(20)
+        self.cli("logger", "stop")
+        logs = sorted((self.rootfs / "log").rglob("*.ulg"))
+        if len(logs) != 1:
+            raise RuntimeError(f"expected one ULog, got {len(logs)}")
+        (self.output / "ulog_path.txt").write_text(str(logs[0]) + "\n", encoding="utf-8")
+
+    def close(self):
+        if self.processes:
+            try:
+                self.cli("commander", "land")
+                self.cli("shutdown")
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        for process in reversed(self.processes):
+            if process.poll() is None:
+                os.killpg(process.pid, signal.SIGTERM)
+                try:
+                    process.wait(timeout=8)
+                except subprocess.TimeoutExpired:
+                    os.killpg(process.pid, signal.SIGKILL)
+                    process.wait()
+        for stream in self.streams:
+            stream.close()
+        self.socket.close()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--dialect", type=Path, required=True)
+    parser.add_argument("--mode", choices=("off", "shadow", "active"), required=True)
+    parser.add_argument("--scenario", choices=("normal", "wind", "payload"), required=True)
+    parser.add_argument("--seed", type=int, required=True)
+    args = parser.parse_args()
+    trial = Trial(args)
+    try:
+        trial.run()
+    finally:
+        trial.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "name": "bounded_residual_observer_001",
+  "description": "一阶残差观测与有限幅加速度补偿；仅供研究，不预设性能改进。",
+  "nodes": [
+    {"id": "residual", "op": "acceleration_residual"},
+    {"id": "filtered", "op": "lowpass_acceleration", "input": "residual", "tau_s": 0.35},
+    {"id": "compensation", "op": "acceleration_gain", "input": "filtered", "gain": [-0.3, -0.3, -0.2]},
+    {"id": "bounded", "op": "limit_acceleration", "input": "compensation", "limit_m_s2": [0.8, 0.8, 0.5]}
+  ],
+  "output": "bounded",
+  "maximum_correction_m_s2": 1.0
+}

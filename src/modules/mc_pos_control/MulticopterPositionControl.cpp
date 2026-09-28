@@ -34,6 +34,10 @@
 #include "MulticopterPositionControl.hpp"
 
 #include <float.h>
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+#include <cstdlib>
+#include <cstring>
+#endif
 #include <lib/mathlib/mathlib.h>
 #include <lib/matrix/matrix/math.hpp>
 #include <px4_platform_common/events.h>
@@ -51,6 +55,20 @@ MulticopterPositionControl::MulticopterPositionControl(bool vtol) :
 	_vel_z_deriv(this, "VELD")
 {
 	parameters_update(true);
+
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+	const char *research_mode = std::getenv("MERIVUS_AFCR_MODE");
+	const char *sim_model = std::getenv("PX4_SIM_MODEL");
+
+	if (sim_model && research_mode) {
+		if (std::strcmp(research_mode, "shadow") == 0) {
+			_research_mode = PositionControl::ResearchMode::Shadow;
+
+		} else if (std::strcmp(research_mode, "active") == 0) {
+			_research_mode = PositionControl::ResearchMode::Active;
+		}
+	}
+#endif
 	_tilt_limit_slew_rate.setSlewRate(.2f);
 	_takeoff_status_pub.advertise();
 }
@@ -335,8 +353,8 @@ void MulticopterPositionControl::Run()
 	vehicle_local_position_s vehicle_local_position;
 
 	if (_local_pos_sub.update(&vehicle_local_position)) {
-		const float dt =
-			math::constrain(((vehicle_local_position.timestamp_sample - _time_stamp_last_loop) * 1e-6f), 0.002f, 0.04f);
+		const float actual_dt = (vehicle_local_position.timestamp_sample - _time_stamp_last_loop) * 1e-6f;
+		const float dt = math::constrain(actual_dt, 0.002f, 0.04f);
 		_time_stamp_last_loop = vehicle_local_position.timestamp_sample;
 
 		// set _dt in controllib Block for BlockDerivative
@@ -536,8 +554,19 @@ void MulticopterPositionControl::Run()
 
 			_control.setState(states);
 
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+			const bool research_hover = flying && !_vehicle_land_detected.ground_contact
+				&& actual_dt >= 0.002f && actual_dt <= 0.04f
+				&& PX4_ISFINITE(_setpoint.position[0]) && PX4_ISFINITE(_setpoint.position[1])
+				&& PX4_ISFINITE(_setpoint.position[2]);
+			_control.setResearchMode(research_hover ? _research_mode : PositionControl::ResearchMode::Off);
+#endif
+
 			// Run position control
 			if (!_control.update(dt)) {
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+				_control.setResearchMode(PositionControl::ResearchMode::Off);
+#endif
 				// Failsafe
 				_vehicle_constraints = {0, NAN, NAN, false, {}}; // reset constraints
 
@@ -553,6 +582,19 @@ void MulticopterPositionControl::Run()
 			_control.getLocalPositionSetpoint(local_pos_sp);
 			local_pos_sp.timestamp = hrt_absolute_time();
 			_local_pos_sp_pub.publish(local_pos_sp);
+
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+			if (_control.researchCandidateValid()) {
+				debug_vect_s candidate_acceleration{};
+				std::strncpy(candidate_acceleration.name, "AFCR_ACC", sizeof(candidate_acceleration.name) - 1);
+				const Vector3f acceleration = _control.researchCandidateAcceleration();
+				candidate_acceleration.x = acceleration(0);
+				candidate_acceleration.y = acceleration(1);
+				candidate_acceleration.z = acceleration(2);
+				candidate_acceleration.timestamp = hrt_absolute_time();
+				_research_acceleration_pub.publish(candidate_acceleration);
+			}
+#endif
 
 			// Publish attitude setpoint output
 			vehicle_attitude_setpoint_s attitude_setpoint{};

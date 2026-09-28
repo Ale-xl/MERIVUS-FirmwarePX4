@@ -65,6 +65,10 @@
 #include <uORB/topics/vehicle_local_position.h>
 #include <uORB/topics/vehicle_local_position_setpoint.h>
 
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+#include <uORB/topics/debug_vect.h>
+#endif
+
 using namespace time_literals;
 
 class MulticopterPositionControl : public ModuleBase<MulticopterPositionControl>, public control::SuperBlock,
@@ -95,6 +99,11 @@ private:
 	uORB::PublicationData<takeoff_status_s>              _takeoff_status_pub{ORB_ID(takeoff_status)};
 	uORB::Publication<vehicle_attitude_setpoint_s>	     _vehicle_attitude_setpoint_pub{ORB_ID(vehicle_attitude_setpoint)};
 	uORB::Publication<vehicle_local_position_setpoint_s> _local_pos_sp_pub{ORB_ID(vehicle_local_position_setpoint)};	/**< vehicle local position setpoint publication */
+
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+	uORB::Publication<debug_vect_s> _research_acceleration_pub{ORB_ID(debug_vect)};
+	PositionControl::ResearchMode _research_mode{PositionControl::ResearchMode::Off};
+#endif
 
 	uORB::SubscriptionCallbackWorkItem _local_pos_sub{this, ORB_ID(vehicle_local_position)};	/**< vehicle local position */
 

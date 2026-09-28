@@ -32,7 +32,8 @@ MERIVUS
 │   └── supervisor and logging
 ├── Simulation
 │   ├── PX4 SITL
-│   └── simulator_mavlink FTC injection
+│   ├── simulator_mavlink FTC injection
+│   └── SITL 限定悬停候选研究入口与真值评估
 └── Tooling
     ├── CMake / Make / NuttX / arm-none-eabi
     ├── Git submodules and GitNexus
@@ -43,7 +44,7 @@ MERIVUS
 
 | 系统 | 职责与入口 | 主要路径 | 上下游 | 来源 | 成熟度 |
 | --- | --- | --- | --- | --- | --- |
-| Flight Core | 状态估计、位置/姿态/角速度控制、控制分配、安全状态 | `src/modules/ekf2`、`mc_*_control`、`control_allocator`、`commander`、`flight_mode_manager` | 传感器输入；向执行器输出 | 以 `PX4_UPSTREAM` 为主；allocator 有集中 FTC hook | PX4 成熟核心；产品构建仍需验证 |
+| Flight Core | 状态估计、位置/姿态/角速度控制、控制分配、安全状态 | `src/modules/ekf2`、`mc_*_control`、`control_allocator`、`commander`、`flight_mode_manager` | 传感器输入；向执行器输出 | 以 `PX4_UPSTREAM` 为主；allocator 有 FTC hook，mc_pos_control 有 SITL 限定研究入口 | PX4 成熟核心；研究入口尚无闭环验证 |
 | Sensor processing | 驱动数据选择、校准并生成 `sensor_combined`、`vehicle_imu` 等 | `src/drivers`、`src/modules/sensors` | 硬件→EKF2、FTC | PX4 原生 + FMUv6C 板级适配 | 板级改动已实现，未在本轮实机复验 |
 | FMUv6C BSP | V6C22 识别、总线映射、传感器启动、串口和产品默认参数 | `boards/px4/fmu-v6c` | 硬件→驱动、构建目标 | `BOARD_SPECIFIC`、`MERIVUS_MODIFIED_PX4` | `IMPLEMENTED_UNVERIFIED` |
 | GNSS / RTK | Hyper982 通过 NMEA 输入定位与双天线航向配置 | GPS1、`src/drivers/gps`、`src/modules/sensors/vehicle_gps_position`、EKF2 | GNSS→EKF2/MAVLink | PX4 通用 GPS 栈 + MERIVUS 默认参数 | 配置合同已建立；本轮未复验设备 |

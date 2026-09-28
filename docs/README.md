@@ -11,6 +11,10 @@
 - [关键调用链](architecture/CALL_CHAINS.md)
 - [硬件—软件对应关系](hardware/HARDWARE_SOFTWARE_MAP.md)
 
+## 悬停控制研究
+
+- [自主飞控算法研究系统](research/AUTONOMOUS_FLIGHT_CONTROL_RESEARCH.md)
+
 ## FTC
 
 - [FTC 文档入口](extreme_control/README.md)
