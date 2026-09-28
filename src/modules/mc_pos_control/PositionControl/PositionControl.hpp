@@ -172,7 +172,7 @@ public:
 		}
 	}
 	bool researchCandidateValid() const { return _research_candidate_valid; }
-	matrix::Vector3f researchCandidateAcceleration() const { return _research_candidate_acceleration; }
+	matrix::Vector3f researchCandidateCorrection() const { return _research_candidate_correction; }
 #endif
 
 	/**
@@ -248,7 +248,7 @@ private:
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
 	ResearchMode _research_mode{ResearchMode::Off};
 	afcr::Candidate _research_candidate{};
-	matrix::Vector3f _research_candidate_acceleration{0.f, 0.f, 0.f};
+	matrix::Vector3f _research_candidate_correction{0.f, 0.f, 0.f};
 	bool _research_candidate_valid{false};
 #endif
 };

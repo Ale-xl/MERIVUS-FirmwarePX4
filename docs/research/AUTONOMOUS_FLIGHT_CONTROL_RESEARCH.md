@@ -22,7 +22,7 @@ Researcher 可用 `python3 Tools/merivus/flight_control_research/research.py --o
 | [IEEE 的 DOB-MPC 四旋翼研究](https://ieeexplore.ieee.org/document/10778610) | 观察器与预测控制的组合结构 | 论文轨迹跟踪性能等于 PX4 悬停收益 |
 | [UZH/ETH 相关的 GP-MPC 残差动力学研究](https://arxiv.org/pdf/2102.05773v2) | 残差学习和标称模型分离的思路 | 高速轨迹结果代表低速悬停表现 |
 
-PX4 原位置环、姿态环、角速度环、EKF2、allocator 与 failsafe 保持原有职责。研究模式只在 `CONFIG_ARCH_BOARD_PX4_SITL` 构建中存在，还要同时具有 `PX4_SIM_MODEL` 与 `MERIVUS_AFCR_MODE=shadow|active`。模式只在飞行中、非接地且 XYZ 位置设定点有效时进入；失效保护重算时关闭。真实固件无该入口。SITL 使用已有 `debug_vect` 记录 `AFCR_ACC`；设置 `SDLOG_PROFILE=163` 包含 debug profile。没有增加参数或 uORB 类型。
+PX4 原位置环、姿态环、角速度环、EKF2、allocator 与 failsafe 保持原有职责。研究模式只在 `CONFIG_ARCH_BOARD_PX4_SITL` 构建中存在，还要同时具有 `PX4_SIM_MODEL` 与 `MERIVUS_AFCR_MODE=shadow|active`。模式只在飞行中、非接地且 XYZ 位置设定点有效时进入；失效保护重算时关闭。真实固件无该入口。SITL 使用已有 `debug_vect` 以 `AFCR_DA` 记录候选加速度修正；设置 `SDLOG_PROFILE=163` 包含 debug profile。首轮日志中的 `AFCR_ACC` 是修正前后的总候选加速度，含义不同。没有增加参数或 uORB 类型。
 
 ## 每轮实验合同
 

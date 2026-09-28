@@ -585,14 +585,14 @@ void MulticopterPositionControl::Run()
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
 			if (_control.researchCandidateValid()) {
-				debug_vect_s candidate_acceleration{};
-				std::strncpy(candidate_acceleration.name, "AFCR_ACC", sizeof(candidate_acceleration.name) - 1);
-				const Vector3f acceleration = _control.researchCandidateAcceleration();
-				candidate_acceleration.x = acceleration(0);
-				candidate_acceleration.y = acceleration(1);
-				candidate_acceleration.z = acceleration(2);
-				candidate_acceleration.timestamp = hrt_absolute_time();
-				_research_acceleration_pub.publish(candidate_acceleration);
+				debug_vect_s candidate_correction{};
+				std::strncpy(candidate_correction.name, "AFCR_DA", sizeof(candidate_correction.name) - 1);
+				const Vector3f correction = _control.researchCandidateCorrection();
+				candidate_correction.x = correction(0);
+				candidate_correction.y = correction(1);
+				candidate_correction.z = correction(2);
+				candidate_correction.timestamp = hrt_absolute_time();
+				_research_correction_pub.publish(candidate_correction);
 			}
 #endif
 

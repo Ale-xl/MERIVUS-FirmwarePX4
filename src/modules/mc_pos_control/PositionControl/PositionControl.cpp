@@ -155,7 +155,7 @@ void PositionControl::_velocityControl(const float dt)
 	if (_research_mode != ResearchMode::Off) {
 		const afcr::Candidate::Result research = _research_candidate.update(vel_error, _vel_dot, _acc_sp, dt,
 				_research_mode == ResearchMode::Active);
-		_research_candidate_acceleration = research.acceleration;
+		_research_candidate_correction = research.acceleration - _acc_sp;
 		_research_candidate_valid = research.valid;
 
 		if (research.valid && _research_mode == ResearchMode::Active) {

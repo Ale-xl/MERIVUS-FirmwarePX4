@@ -101,7 +101,7 @@ private:
 	uORB::Publication<vehicle_local_position_setpoint_s> _local_pos_sp_pub{ORB_ID(vehicle_local_position_setpoint)};	/**< vehicle local position setpoint publication */
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
-	uORB::Publication<debug_vect_s> _research_acceleration_pub{ORB_ID(debug_vect)};
+	uORB::Publication<debug_vect_s> _research_correction_pub{ORB_ID(debug_vect)};
 	PositionControl::ResearchMode _research_mode{PositionControl::ResearchMode::Off};
 #endif
 
