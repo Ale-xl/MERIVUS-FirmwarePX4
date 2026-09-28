@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "name": "settled_hover_gated_residual_velocity_005",
-  "description": "稳态定点悬停启用后，以更高的水平速度误差阈值连续门控瞬态补偿，覆盖固定风收敛波动，不修改 Z 轴。",
+  "name": "settled_hover_gated_residual_velocity_006",
+  "description": "保持非阵风静默阈值，增加阵风期间的水平速度反馈以提高位移抑制余量，不修改 Z 轴。",
   "nodes": [
     {"id": "velocity_error", "op": "velocity_error"},
-    {"id": "velocity_feedback", "op": "velocity_gain", "input": "velocity_error", "gain": [0.15, 0.15, 0.0]},
+    {"id": "velocity_feedback", "op": "velocity_gain", "input": "velocity_error", "gain": [0.20, 0.20, 0.0]},
     {"id": "residual", "op": "acceleration_residual"},
     {"id": "fast_residual", "op": "lowpass_acceleration", "input": "residual", "tau_s": 0.12},
     {"id": "slow_residual", "op": "lowpass_acceleration", "input": "residual", "tau_s": 1.5},
