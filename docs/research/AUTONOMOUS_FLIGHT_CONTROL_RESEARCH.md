@@ -27,7 +27,7 @@ PX4 原位置环、姿态环、角速度环、EKF2、allocator 与 failsafe 保�
 ## 每轮实验合同
 
 1. AI 只修改 `Tools/merivus/flight_control_research/candidate.json`，由生成器生成 `ResearchCandidateSpec.hpp`。`cycle.py` 检查相对 HEAD 的更改路径；评价器、试验器与门限必须经单独审查。此路径检查是流程约束，不是恶意代码沙箱。
-2. Linux 运行 `python3 Tools/merivus/flight_control_research/cycle.py --output /absolute/results/round-001 --dialect /absolute/generated/pymavlink/dialect.py`。输出目录须不存在；脚本运行单测、`make px4_sitl_default sitl_gazebo-classic`，每个种子分别运行原生 PX4 与候选 Active 的正常、固定风和较重载荷场景。MAVLink dialect 路径需提供适配本仓库的已生成 Python 文件。
+2. Linux 运行 `python3 Tools/merivus/flight_control_research/cycle.py --output /absolute/results/round-001 --dialect /absolute/generated/pymavlink/dialect.py`。输出目录须不存在；脚本运行单测，先执行 `make px4_sitl_default -j4` 生成 MERIVUS MAVLink 头文件，再执行 `make px4_sitl_default sitl_gazebo-classic -j4`。每个种子分别运行原生 PX4 与候选 Active 的正常、固定风和较重载荷场景。MAVLink dialect 路径需提供适配本仓库的已生成 Python 文件。
 3. 每次独立 Gazebo 会话保存场景、种子、源码提交、世界或模型、日志和 ULog；评分读取仿真真值 `vehicle_local_position_groundtruth`、控制器位置设定点、allocator 状态、电机输出和实际飞行模式。真值、设定点或 allocator 数据缺失时拒绝评分；窗口中必须保持已解锁的 Position/Loiter。当前载荷是起飞前固定 1.8 kg，而非空中突加载荷；风场是固定风，尚不支持恢复时间判定。
 4. 硬门示例为最大 XY 偏移 <2 m、Z 偏移 <1 m、分配失败样本 <5%；这些是研究初值，不能用作实机安全阈值。正常悬停的 XY/Z RMS 和平均电机输出平方和不得比基线增加超过 5%；受扰场景至少一项误差需下降 10%。每个种子都通过才标记“值得继续 SITL”，并不自动合入飞行产品。
 

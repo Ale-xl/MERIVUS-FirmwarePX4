@@ -14,6 +14,12 @@ import time
 import xml.etree.ElementTree as ET
 
 
+def hover_reached(position, takeoff_z):
+    return (position is not None and all(math.isfinite(value) for value in
+            (takeoff_z, position.z, position.vz))
+            and takeoff_z - position.z >= 1.0 and abs(position.vz) <= 0.3)
+
+
 class Trial:
     def __init__(self, args):
         self.args = args
@@ -142,14 +148,15 @@ class Trial:
                 raise TimeoutError("PX4 local position unavailable")
             self.pump()
         self.wait_for(12)
+        takeoff_z = self.latest["LOCAL_POSITION_NED"].z
         self.writer.command_long_send(1, 1, 400, 0, 1, 0, 0, 0, 0, 0, 0)
         self.wait_for(2)
         if self.cli("commander", "takeoff").returncode:
             raise RuntimeError("PX4 takeoff command failed")
         self.wait_for(20)
         position = self.latest.get("LOCAL_POSITION_NED")
-        if position is None or not math.isfinite(position.z) or -position.z < 2:
-            raise RuntimeError("takeoff did not reach hover altitude")
+        if not hover_reached(position, takeoff_z):
+            raise RuntimeError("takeoff did not establish a stable hover at least 1 m above its start")
         start = self.sim_time
         self.wait_for(25)
         end = self.sim_time

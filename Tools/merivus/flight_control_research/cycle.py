@@ -62,7 +62,8 @@ def main():
     }
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     run([sys.executable, "-m", "unittest", "discover", "-s", str(SPEC.parent), "-p", "test_research.py"])
-    run(["make", "px4_sitl_default", "sitl_gazebo-classic"])
+    run(["make", "px4_sitl_default", "-j4"])
+    run(["make", "px4_sitl_default", "sitl_gazebo-classic", "-j4"])
     paired = []
     for seed in args.seeds:
         baseline, active = {}, {}

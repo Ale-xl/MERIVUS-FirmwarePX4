@@ -6,6 +6,7 @@ import unittest
 import candidate
 import evaluate
 import research
+import run_sitl
 
 
 class CandidateTest(unittest.TestCase):
@@ -45,6 +46,18 @@ def telemetry(error=0.1, saturated=False):
 
 
 class EvaluationTest(unittest.TestCase):
+    def test_takeoff_gate_uses_relative_height_and_stationary_vertical_motion(self):
+        class Position:
+            z = -1.7
+            vz = 0.05
+
+        self.assertTrue(run_sitl.hover_reached(Position(), 0.0))
+        Position.z = -0.8
+        self.assertFalse(run_sitl.hover_reached(Position(), 0.0))
+        Position.z = -1.7
+        Position.vz = -0.5
+        self.assertFalse(run_sitl.hover_reached(Position(), 0.0))
+
     def test_truth_error_and_allocation_gate(self):
         good = evaluate.score_arrays(*telemetry(), 0, 20_000_000)
         self.assertAlmostEqual(good["xy_rmse_m"], 0.1)
