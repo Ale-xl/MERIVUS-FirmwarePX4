@@ -20,6 +20,26 @@ def hover_reached(position, takeoff_z):
             and takeoff_z - position.z >= 1.0 and abs(position.vz) <= 0.3)
 
 
+def configure_wind_world(source, scenario, seed):
+    if scenario not in ("wind", "gust"):
+        raise ValueError(f"unsupported wind scenario: {scenario}")
+    tree = ET.parse(source)
+    plugin = tree.find(".//plugin[@name='wind_plugin']")
+    if plugin is None:
+        raise ValueError("Gazebo wind plugin not found")
+    direction = "1 0 0" if seed % 2 else "0 1 0"
+    settings = ({"windDirectionMean": direction} if scenario == "wind" else {
+        "windVelocityMean": "0", "windGustStart": "46", "windGustDuration": "5",
+        "windGustVelocityMean": "8", "windGustDirectionMean": direction,
+    })
+    for name, value in settings.items():
+        field = plugin.find(name)
+        if field is None:
+            raise ValueError(f"Gazebo wind setting missing: {name}")
+        field.text = value
+    return tree
+
+
 class Trial:
     def __init__(self, args):
         self.args = args
@@ -61,14 +81,12 @@ class Trial:
             "mavlink stream -r 20 -s LOCAL_POSITION_NED -u 18670\n", encoding="utf-8")
         config.joinpath("px4-rc.params").write_text(
             "param set COM_RC_IN_MODE 1\nparam set SDLOG_MODE 2\nparam set SDLOG_PROFILE 163\n", encoding="utf-8")
-        world = gazebo / "worlds" / ("windy.world" if args.scenario == "wind" else "empty.world")
-        if args.scenario == "wind":
-            text = world.read_text(encoding="utf-8")
-            direction = "1 0 0" if args.seed % 2 else "0 1 0"
-            text = text.replace("<windDirectionMean>0 1 0</windDirectionMean>",
-                                f"<windDirectionMean>{direction}</windDirectionMean>")
-            world = self.output / "world.world"
-            world.write_text(text, encoding="utf-8")
+        world = gazebo / "worlds" / ("windy.world" if args.scenario in ("wind", "gust") else "empty.world")
+        if args.scenario in ("wind", "gust"):
+            configured_world = self.output / "world.world"
+            configure_wind_world(world, args.scenario, args.seed).write(
+                configured_world, encoding="unicode", xml_declaration=True)
+            world = configured_world
         model = gazebo / "models/iris/iris.sdf"
         if args.scenario == "payload":
             tree = ET.parse(model)
@@ -160,10 +178,13 @@ class Trial:
         start = self.sim_time
         self.wait_for(25)
         end = self.sim_time
-        (self.output / "windows.json").write_text(json.dumps([
-            {"name": "normal_hover" if self.args.scenario == "normal" else self.args.scenario + "_hover",
-             "start_s": start + 5, "end_s": end - 5}
-        ], indent=2) + "\n", encoding="utf-8")
+        window = {"name": "normal_hover" if self.args.scenario == "normal" else self.args.scenario + "_hover",
+                  "start_s": start + 5, "end_s": end - 5}
+        if self.args.scenario == "gust":
+            if window["start_s"] + 2 > 46 or window["end_s"] < 51:
+                raise RuntimeError("gust event outside the scored hover window")
+            window.update(event_start_s=46, event_end_s=51)
+        (self.output / "windows.json").write_text(json.dumps([window], indent=2) + "\n", encoding="utf-8")
         self.cli("commander", "land")
         self.wait_for(20)
         self.cli("logger", "stop")
@@ -198,7 +219,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--dialect", type=Path, required=True)
     parser.add_argument("--mode", choices=("off", "shadow", "active"), required=True)
-    parser.add_argument("--scenario", choices=("normal", "wind", "payload"), required=True)
+    parser.add_argument("--scenario", choices=("normal", "wind", "gust", "payload"), required=True)
     parser.add_argument("--seed", type=int, required=True)
     args = parser.parse_args()
     trial = Trial(args)

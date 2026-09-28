@@ -6,6 +6,7 @@ import bisect
 import json
 import math
 from pathlib import Path
+import statistics
 
 
 def dataset(log, name):
@@ -27,13 +28,15 @@ def rms(values):
     return math.sqrt(sum(value * value for value in values) / len(values))
 
 
-def score_arrays(truth, reference, allocator, motors, status, start_us, end_us):
+def score_arrays(truth, reference, allocator, motors, status, start_us, end_us,
+                 event_start_us=None, event_end_us=None):
     if end_us <= start_us:
         raise ValueError("window end must follow start")
     xy_errors, z_errors, efforts = [], [], []
     saturation = 0
     samples = 0
     invalid_mode = 0
+    truth_points = []
     for i, timestamp in enumerate(truth["timestamp"]):
         timestamp = int(timestamp)
         if timestamp < start_us or timestamp >= end_us:
@@ -50,6 +53,7 @@ def score_arrays(truth, reference, allocator, motors, status, start_us, end_us):
             raise ValueError("nonfinite truth, reference, or motor output")
         xy_errors.append(math.hypot(error[0], error[1]))
         z_errors.append(abs(error[2]))
+        truth_points.append((timestamp, *[float(truth[axis][i]) for axis in ("x", "y", "z")]))
         efforts.append(sum(value * value for value in controls))
         saturation += not (bool(allocator["thrust_setpoint_achieved"][k])
                            and bool(allocator["torque_setpoint_achieved"][k]))
@@ -59,18 +63,46 @@ def score_arrays(truth, reference, allocator, motors, status, start_us, end_us):
     expected = (end_us - start_us) / 20_000
     if samples < 20 or samples < expected * 0.6:
         raise ValueError(f"insufficient aligned truth samples: {samples}")
+    anchor_points = [point for point in truth_points if point[0] < start_us + 2_000_000]
+    if len(anchor_points) < 20:
+        raise ValueError("insufficient truth samples to anchor the hover position")
+    anchor = [statistics.median(point[axis] for point in anchor_points) for axis in (1, 2, 3)]
+    station_xy = [math.hypot(point[1] - anchor[0], point[2] - anchor[1]) for point in truth_points]
+    station_z = [abs(point[3] - anchor[2]) for point in truth_points]
     metrics = {
         "samples": samples,
         "xy_rmse_m": rms(xy_errors),
         "z_rmse_m": rms(z_errors),
         "xy_peak_m": max(xy_errors),
         "z_peak_m": max(z_errors),
+        "station_xy_rmse_m": rms(station_xy),
+        "station_z_rmse_m": rms(station_z),
+        "station_xy_peak_m": max(station_xy),
+        "station_z_peak_m": max(station_z),
         "motor_effort_mean": sum(efforts) / samples,
         "allocation_failure_fraction": saturation / samples,
         "invalid_mode_fraction": invalid_mode / samples,
     }
+    if event_start_us is not None or event_end_us is not None:
+        if (event_start_us is None or event_end_us is None or
+                not start_us + 2_000_000 <= event_start_us < event_end_us < end_us):
+            raise ValueError("event must follow the truth anchor and end within the scored window")
+        event_indices = [index for index, point in enumerate(truth_points)
+                         if point[0] >= event_start_us]
+        recovery_indices = [index for index in event_indices
+                            if truth_points[index][0] >= event_end_us]
+        if len(event_indices) < 20 or len(recovery_indices) < 20:
+            raise ValueError("insufficient truth samples for event scoring")
+        metrics.update(event_xy_rmse_m=rms([station_xy[index] for index in event_indices]),
+                       event_z_rmse_m=rms([station_z[index] for index in event_indices]),
+                       event_xy_peak_m=max(station_xy[index] for index in event_indices),
+                       event_z_peak_m=max(station_z[index] for index in event_indices),
+                       recovery_xy_rmse_m=rms([station_xy[index] for index in recovery_indices]),
+                       recovery_z_rmse_m=rms([station_z[index] for index in recovery_indices]))
     metrics["hard_gate_passed"] = (metrics["xy_peak_m"] < 2.0
                                     and metrics["z_peak_m"] < 1.0
+                                    and metrics["station_xy_peak_m"] < 2.0
+                                    and metrics["station_z_peak_m"] < 1.0
                                     and metrics["allocation_failure_fraction"] < 0.05
                                     and metrics["invalid_mode_fraction"] == 0)
     return metrics
@@ -94,7 +126,11 @@ def evaluate(ulog_path, windows_path):
             raise ValueError(f"duplicate window: {name}")
         result[name] = score_arrays(truth, reference, allocator, motors, status,
                                     int(window["start_s"] * 1_000_000),
-                                    int(window["end_s"] * 1_000_000))
+                                    int(window["end_s"] * 1_000_000),
+                                    int(window["event_start_s"] * 1_000_000)
+                                    if "event_start_s" in window else None,
+                                    int(window["event_end_s"] * 1_000_000)
+                                    if "event_end_s" in window else None)
     return result
 
 
@@ -108,14 +144,23 @@ def compare(baseline, candidate):
     normal = "normal_hover"
     if normal not in baseline:
         raise ValueError("normal_hover window required")
-    for key in ("xy_rmse_m", "z_rmse_m", "motor_effort_mean"):
-        if candidate[normal][key] > baseline[normal][key] * 1.05:
+    for key in ("station_xy_rmse_m", "station_z_rmse_m", "motor_effort_mean"):
+        limit = 1.05 if key == "motor_effort_mean" else 1.15
+        if candidate[normal][key] > baseline[normal][key] * limit:
             return {"retain": False, "reason": f"normal hover regression: {key}"}
     stresses = [name for name in baseline if name != normal]
     if not stresses:
         return {"retain": False, "reason": "no perturbation window"}
-    improved = any(candidate[name][key] < baseline[name][key] * 0.9
-                   for name in stresses for key in ("xy_rmse_m", "z_rmse_m"))
+    for name in stresses:
+        for key in ("station_xy_rmse_m", "station_z_rmse_m"):
+            if candidate[name][key] > baseline[name][key] * 1.2:
+                return {"retain": False, "reason": f"stress regression: {name} {key}"}
+    if "gust_hover" in baseline:
+        improved = any(candidate["gust_hover"][key] < baseline["gust_hover"][key] * 0.9
+                       for key in ("event_xy_rmse_m", "event_z_rmse_m"))
+    else:
+        improved = any(candidate[name][key] < baseline[name][key] * 0.9
+                       for name in stresses for key in ("station_xy_rmse_m", "station_z_rmse_m"))
     return {"retain": improved, "reason": "stress improvement" if improved else "no material stress improvement"}
 
 

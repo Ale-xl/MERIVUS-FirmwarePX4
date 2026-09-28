@@ -1,6 +1,6 @@
 # MERIVUS 自主飞控算法研究系统：第一阶段
 
-状态：`SITL_VERIFIED_CANDIDATE_REJECTED`。候选图生成、PX4 SITL 控制入口、仿真试验与 ULog 判定代码已在隔离的 Ubuntu 虚拟机完成构建及 12 组闭环试验；首个有界残差候选未通过预设的正常悬停回退门槛，不能视作更稳的飞控算法。目标是正常执行器条件下的多旋翼定点悬停，先比较持续风和较重载荷。[首轮实验记录](experiments/round-001/README.md)保存源码版本、指标和判定。此前针对定位源、动力链与原生参数的悬停审计仍是实机问题诊断依据；SITL 结果不能替代这些检查。
+状态：`SITL_VERIFIED_CANDIDATE_REJECTED`。候选图生成、PX4 SITL 控制入口、仿真试验与 ULog 判定代码已在隔离的 Ubuntu 虚拟机完成构建及 12 组闭环试验；首个有界残差候选未通过预设的正常悬停回退门槛，不能视作更稳的飞控算法。目标是正常执行器条件下的多旋翼定点悬停。[首轮实验记录](experiments/round-001/README.md)保存源码版本、指标和判定；[第二轮预注册协议](experiments/round-002/PROTOCOL.md)规定固定随机数种子、阵风事件和物理位移评分。此前针对定位源、动力链与原生参数的悬停审计仍是实机问题诊断依据；SITL 结果不能替代这些检查。
 
 ## 四个角色与边界
 
@@ -28,8 +28,8 @@ PX4 原位置环、姿态环、角速度环、EKF2、allocator 与 failsafe 保�
 
 1. AI 只修改 `Tools/merivus/flight_control_research/candidate.json`，由生成器生成 `ResearchCandidateSpec.hpp`。`cycle.py` 检查相对 HEAD 的更改路径；评价器、试验器与门限必须经单独审查。此路径检查是流程约束，不是恶意代码沙箱。
 2. Linux 运行 `python3 Tools/merivus/flight_control_research/cycle.py --output /absolute/results/round-001 --dialect /absolute/generated/pymavlink/dialect.py`。输出目录须不存在；脚本运行单测，先执行 `make px4_sitl_default -j4` 生成 MERIVUS MAVLink 头文件，再执行 `make px4_sitl_default sitl_gazebo-classic -j4`。每个种子分别运行原生 PX4 与候选 Active 的正常、固定风和较重载荷场景。MAVLink dialect 路径需提供适配本仓库的已生成 Python 文件。
-3. 每次独立 Gazebo 会话保存场景、种子、源码提交、世界或模型、日志和 ULog；评分读取仿真真值 `vehicle_local_position_groundtruth`、控制器位置设定点、allocator 状态、电机输出和实际飞行模式。真值、设定点或 allocator 数据缺失时拒绝评分；窗口中必须保持已解锁的 Position/Loiter。当前载荷是起飞前固定 1.8 kg，而非空中突加载荷；风场是固定风，尚不支持恢复时间判定。
-4. 硬门示例为最大 XY 偏移 <2 m、Z 偏移 <1 m、分配失败样本 <5%；这些是研究初值，不能用作实机安全阈值。正常悬停的 XY/Z RMS 和平均电机输出平方和不得比基线增加超过 5%；受扰场景至少一项误差需下降 10%。每个种子都通过才标记“值得继续 SITL”，并不自动合入飞行产品。
+3. 每次独立 Gazebo 会话保存场景、种子、源码提交、世界或模型、日志和 ULog；评分读取仿真真值 `vehicle_local_position_groundtruth`、控制器位置设定点、allocator 状态、电机输出和实际飞行模式。真值、设定点或 allocator 数据缺失时拒绝评分；窗口中必须保持已解锁的 Position/Loiter。当前载荷是起飞前固定 1.8 kg，而非空中突加载荷；第二轮增加仿真第 46–51 秒的独立阵风事件。
+4. 原始真值相对设定点的 XY/Z 峰值与分配失败、飞行模式构成硬门；物理悬停位移以窗口前 2 秒真值为锚点评分。首轮采用原始 RMSE 的 5% 回退门槛，已被[实验记录](experiments/round-001/README.md)固化；第二轮执行[预注册协议](experiments/round-002/PROTOCOL.md)中的正常、受扰及阵风门槛。所有阈值均为 SITL 候选筛选条件，不能用作实机安全阈值。
 
 ## 下一阶段
 

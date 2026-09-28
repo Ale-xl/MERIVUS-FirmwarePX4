@@ -46,6 +46,19 @@ def telemetry(error=0.1, saturated=False):
 
 
 class EvaluationTest(unittest.TestCase):
+    def test_wind_scenarios_configure_the_gazebo_plugin(self):
+        source = (Path(__file__).parents[3] /
+                  "Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/windy.world")
+        plugin = run_sitl.configure_wind_world(source, "gust", 1).find(".//plugin[@name='wind_plugin']")
+        self.assertEqual(plugin.findtext("windVelocityMean"), "0")
+        self.assertEqual(plugin.findtext("windGustStart"), "46")
+        self.assertEqual(plugin.findtext("windGustDuration"), "5")
+        self.assertEqual(plugin.findtext("windGustVelocityMean"), "8")
+        self.assertEqual(plugin.findtext("windGustDirectionMean"), "1 0 0")
+        plugin = run_sitl.configure_wind_world(source, "wind", 2).find(".//plugin[@name='wind_plugin']")
+        self.assertEqual(plugin.findtext("windVelocityMean"), "4.0")
+        self.assertEqual(plugin.findtext("windDirectionMean"), "0 1 0")
+
     def test_takeoff_gate_uses_relative_height_and_stationary_vertical_motion(self):
         class Position:
             z = -1.7
@@ -62,6 +75,8 @@ class EvaluationTest(unittest.TestCase):
         good = evaluate.score_arrays(*telemetry(), 0, 20_000_000)
         self.assertAlmostEqual(good["xy_rmse_m"], 0.1)
         self.assertAlmostEqual(good["z_rmse_m"], 0.1)
+        self.assertAlmostEqual(good["station_xy_rmse_m"], 0.0)
+        self.assertAlmostEqual(good["station_z_rmse_m"], 0.0)
         self.assertTrue(good["hard_gate_passed"])
         bad = evaluate.score_arrays(*telemetry(saturated=True), 0, 20_000_000)
         self.assertFalse(bad["hard_gate_passed"])
@@ -72,20 +87,43 @@ class EvaluationTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "insufficient"):
             evaluate.score_arrays(truth, reference, allocator, motors, status, 0, 20_000_000)
 
+    def test_stationkeeping_metric_uses_initial_truth_anchor(self):
+        data = telemetry(error=0.0)
+        data[0]["x"] = [0.0] * 100 + [0.2] * 900
+        metrics = evaluate.score_arrays(*data, 0, 20_000_000)
+        self.assertGreater(metrics["station_xy_rmse_m"], 0.18)
+        self.assertAlmostEqual(metrics["station_z_rmse_m"], 0.0)
+        event = evaluate.score_arrays(*data, 0, 20_000_000, 5_000_000, 10_000_000)
+        self.assertAlmostEqual(event["event_xy_rmse_m"], 0.2)
+        self.assertAlmostEqual(event["recovery_xy_rmse_m"], 0.2)
+
     def test_wrong_flight_mode_fails(self):
         data = telemetry()
         data[-1]["nav_state"] = [0] * 100
         self.assertFalse(evaluate.score_arrays(*data, 0, 20_000_000)["hard_gate_passed"])
 
     def test_comparison_checks_regression_and_stress(self):
-        normal = {"hard_gate_passed": True, "xy_rmse_m": 0.1, "z_rmse_m": 0.1,
+        normal = {"hard_gate_passed": True, "station_xy_rmse_m": 0.1, "station_z_rmse_m": 0.1,
                   "motor_effort_mean": 1.0}
-        stress = dict(normal, xy_rmse_m=0.4)
+        stress = dict(normal, station_xy_rmse_m=0.4)
         baseline = {"normal_hover": normal, "wind_hover": stress}
-        candidate_result = {"normal_hover": dict(normal), "wind_hover": dict(stress, xy_rmse_m=0.3)}
+        candidate_result = {"normal_hover": dict(normal), "wind_hover": dict(stress, station_xy_rmse_m=0.3)}
         self.assertTrue(evaluate.compare(baseline, candidate_result)["retain"])
-        candidate_result["normal_hover"]["z_rmse_m"] = 0.2
+        candidate_result["normal_hover"]["station_z_rmse_m"] = 0.2
         self.assertFalse(evaluate.compare(baseline, candidate_result)["retain"])
+
+    def test_gust_improvement_must_be_in_the_event_window(self):
+        normal = {"hard_gate_passed": True, "station_xy_rmse_m": 0.1,
+                  "station_z_rmse_m": 0.1, "motor_effort_mean": 1.0}
+        wind = dict(normal, station_xy_rmse_m=0.4)
+        gust = dict(normal, event_xy_rmse_m=0.4, event_z_rmse_m=0.2)
+        baseline = {"normal_hover": normal, "wind_hover": wind, "gust_hover": gust}
+        candidate_result = {"normal_hover": dict(normal),
+                            "wind_hover": dict(wind, station_xy_rmse_m=0.3),
+                            "gust_hover": dict(gust)}
+        self.assertFalse(evaluate.compare(baseline, candidate_result)["retain"])
+        candidate_result["gust_hover"]["event_xy_rmse_m"] = 0.3
+        self.assertTrue(evaluate.compare(baseline, candidate_result)["retain"])
 
 
 class ResearchTest(unittest.TestCase):

@@ -67,7 +67,7 @@ def main():
     paired = []
     for seed in args.seeds:
         baseline, active = {}, {}
-        for scenario in ("normal", "wind", "payload"):
+        for scenario in ("normal", "wind", "gust", "payload"):
             for mode, collection in (("off", baseline), ("active", active)):
                 trial_output = output / f"seed{seed}_{scenario}_{mode}"
                 run([sys.executable, str(SPEC.with_name("run_sitl.py")), "--repo", str(ROOT),
