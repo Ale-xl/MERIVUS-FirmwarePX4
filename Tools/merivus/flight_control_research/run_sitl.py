@@ -133,7 +133,7 @@ class Trial:
             self.pump()
 
     def run(self):
-        self.spawn(["gzserver", "--verbose", str(self.world)], "gazebo")
+        self.spawn(["gzserver", "--verbose", "--seed", str(self.args.seed), str(self.world)], "gazebo")
         time.sleep(3)
         result = subprocess.run(["gz", "model", "--spawn-file=" + str(self.model),
                                  "--model-name=iris", "-x", "0", "-y", "0", "-z", ".5"],
