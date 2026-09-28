@@ -15,6 +15,7 @@ OPERATIONS = {
     "lowpass_acceleration": (("acceleration",), "acceleration", "LowpassAcceleration"),
     "acceleration_gain": (("acceleration",), "acceleration", "AccelerationGain"),
     "add_acceleration": (("acceleration", "acceleration"), "acceleration", "AddAcceleration"),
+    "velocity_gate": (("velocity", "acceleration"), "acceleration", "VelocityGate"),
     "limit_acceleration": (("acceleration",), "acceleration", "LimitAcceleration"),
 }
 
@@ -70,6 +71,14 @@ def validate(spec):
             x = finite_number(node.get("tau_s"), 0.02, 5.0, "tau_s")
         elif op == "limit_acceleration":
             x, y, z = three_numbers(node.get("limit_m_s2"), 0.05, 2.0, "limit_m_s2")
+        elif op == "velocity_gate":
+            thresholds = node.get("threshold_m_s")
+            if not isinstance(thresholds, list) or len(thresholds) != 2:
+                raise ValueError("threshold_m_s: exactly two numbers required")
+            x = finite_number(thresholds[0], 0.0, 3.0, "threshold_m_s")
+            y = finite_number(thresholds[1], 0.0, 3.0, "threshold_m_s")
+            if y <= x:
+                raise ValueError("threshold_m_s: upper threshold must exceed lower threshold")
         typed.append((op, input_indexes, x, y, z))
     output = spec.get("output")
     if output not in names or names[output][1] != "acceleration":

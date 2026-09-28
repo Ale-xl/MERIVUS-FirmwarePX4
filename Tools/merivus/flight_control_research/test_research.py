@@ -30,6 +30,19 @@ class CandidateTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "final limit"):
             candidate.validate(wrong)
 
+    def test_velocity_gate_requires_ordered_finite_thresholds_and_units(self):
+        wrong = copy.deepcopy(self.spec)
+        wrong["nodes"][-2]["threshold_m_s"] = [0.25, 0.05]
+        with self.assertRaisesRegex(ValueError, "upper threshold"):
+            candidate.validate(wrong)
+        wrong["nodes"][-2]["threshold_m_s"] = [0.05, float("nan")]
+        with self.assertRaisesRegex(ValueError, "finite number"):
+            candidate.validate(wrong)
+        wrong = copy.deepcopy(self.spec)
+        wrong["nodes"][-2]["left"] = "combined"
+        with self.assertRaisesRegex(ValueError, "expected velocity"):
+            candidate.validate(wrong)
+
 
 def telemetry(error=0.1, saturated=False):
     times = [i * 20_000 for i in range(1000)]

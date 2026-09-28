@@ -15,6 +15,7 @@ enum class Op : uint8_t {
 	LowpassAcceleration,
 	AccelerationGain,
 	AddAcceleration,
+	VelocityGate,
 	LimitAcceleration
 };
 
@@ -90,6 +91,14 @@ public:
 			case Op::AddAcceleration:
 				value = _values[node.input_a] + _values[node.input_b];
 				break;
+
+			case Op::VelocityGate: {
+				const Vector3f &velocity = _values[node.input_a];
+				const float horizontal_error = sqrtf(velocity(0) * velocity(0) + velocity(1) * velocity(1));
+				const float weight = fmaxf(0.f, fminf(1.f, (horizontal_error - node.x) / (node.y - node.x)));
+				value = _values[node.input_b] * weight;
+				break;
+			}
 
 			case Op::LimitAcceleration:
 				for (unsigned axis = 0; axis < 3; ++axis) {

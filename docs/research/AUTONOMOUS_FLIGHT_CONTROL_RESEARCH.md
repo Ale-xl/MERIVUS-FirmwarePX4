@@ -1,6 +1,6 @@
 # MERIVUS 自主飞控算法研究系统：第一阶段
 
-状态：`SITL_VERIFIED_CANDIDATE_002_REJECTED`。候选图生成、PX4 SITL 控制入口、仿真试验与 ULog 判定代码已在隔离的 Ubuntu 虚拟机完成构建和闭环对照。[首轮实验记录](experiments/round-001/README.md)与[候选 002 发现集](experiments/round-002/RESULT.md)均未通过正常悬停回退门槛。[第二轮协议](experiments/round-002/PROTOCOL.md)固定了随机数种子、阵风事件和物理位移评分；[第三轮预注册协议](experiments/round-003/PROTOCOL.md)针对自然波动设置绝对容差和交替试验顺序。目标是正常执行器条件下的多旋翼定点悬停。此前针对定位源、动力链与原生参数的悬停审计仍是实机问题诊断依据；SITL 结果不能替代这些检查。
+状态：`CANDIDATE_003_DISCOVERY_PENDING`。候选图生成、PX4 SITL 控制入口、仿真试验与 ULog 判定代码已在隔离的 Ubuntu 虚拟机完成构建和闭环对照。[首轮实验记录](experiments/round-001/README.md)与[候选 002 发现集](experiments/round-002/RESULT.md)均未通过正常悬停回退门槛。[第二轮协议](experiments/round-002/PROTOCOL.md)固定了随机数种子、阵风事件和物理位移评分；[第三轮预注册协议](experiments/round-003/PROTOCOL.md)针对自然波动设置绝对容差和交替试验顺序。目标是正常执行器条件下的多旋翼定点悬停。此前针对定位源、动力链与原生参数的悬停审计仍是实机问题诊断依据；SITL 结果不能替代这些检查。
 
 ## 四个角色与边界
 
@@ -11,7 +11,7 @@
 | Engineer | 将生成候选接到 PX4 速度环输出与加速度到推力转换之间 | 仅 SITL 编译；默认关闭，`shadow` 只计算，`active` 只对悬停位置设定点施加 |
 | Experimental Scientist | 构建、试验、ULog、硬门、同种子比较、保留或淘汰 | `cycle.py`、`run_sitl.py`、`evaluate.py`；已在 Ubuntu 20.04.4、Gazebo Classic 11.12.0 与 PX4 SITL 工具链实测 |
 
-候选结构采用拓扑有序的类型图。输入只有速度误差（m/s）和加速度残差（m/s²）；候选输出为加速度修正（m/s²）。生成器检查输入单位、拓扑顺序、节点数量、增益、滤波时间常数和末端限幅。当前残差是“测得速度导数减上一周期加速度设定点”的代理量，包含执行器动态、控制延迟及估计噪声；不能将其直接称为真实外扰。候选 002 的水平修正每轴不超过 0.35 m/s²，Z 轴增益为零，全局修正上限为 0.5 m/s²。无效或不完整输入、异常周期或数值失效时退回 PX4 原输出。
+候选结构采用拓扑有序的类型图。输入只有速度误差（m/s）和加速度残差（m/s²）；候选输出为加速度修正（m/s²）。生成器检查输入单位、拓扑顺序、节点数量、增益、滤波时间常数和末端限幅。当前残差是“测得速度导数减上一周期加速度设定点”的代理量，包含执行器动态、控制延迟及估计噪声；不能将其直接称为真实外扰。候选 003 的水平修正每轴不超过 0.35 m/s²，Z 轴增益为零，全局修正上限为 0.5 m/s²。无效或不完整输入、异常周期或数值失效时退回 PX4 原输出。
 
 Researcher 可用 `python3 Tools/merivus/flight_control_research/research.py --output /absolute/results/literature.json` 批量抓取 11 个主题的 DOI 元数据。输出统一标记 `METADATA_ONLY`；要形成数学假设，仍须读取原文并记录控制层级、状态量、带宽、验证平台和反例。首轮一手资料锚点如下：
 
