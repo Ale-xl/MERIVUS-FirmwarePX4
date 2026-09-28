@@ -11,6 +11,7 @@ import sys
 
 import candidate
 import evaluate
+import shadow
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -52,7 +53,8 @@ def main():
         raise RuntimeError("generated candidate header differs from candidate.json")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    scripts = ("candidate.py", "evaluate.py", "run_sitl.py", "cycle.py", "research.py", "test_research.py")
+    scripts = ("candidate.py", "evaluate.py", "run_sitl.py", "cycle.py", "research.py", "shadow.py",
+               "test_research.py")
     manifest = {
         "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "candidate_sha256": hashlib.sha256(SPEC.read_bytes()).hexdigest(),
@@ -64,6 +66,18 @@ def main():
     run([sys.executable, "-m", "unittest", "discover", "-s", str(SPEC.parent), "-p", "test_research.py"])
     run(["make", "px4_sitl_default", "-j4"])
     run(["make", "px4_sitl_default", "sitl_gazebo-classic", "-j4"])
+    shadow_output = output / f"shadow_gust_seed{args.seeds[0]}"
+    run([sys.executable, str(SPEC.with_name("run_sitl.py")), "--repo", str(ROOT),
+         "--output", str(shadow_output), "--dialect", str(args.dialect.resolve()),
+         "--mode", "shadow", "--scenario", "gust", "--seed", str(args.seeds[0])])
+    shadow_ulog = Path((shadow_output / "ulog_path.txt").read_text(encoding="utf-8").strip())
+    shadow_result = shadow.verify(shadow_ulog, shadow_output / "windows.json", SPEC)
+    shadow_metrics = evaluate.evaluate(shadow_ulog, shadow_output / "windows.json")
+    if not shadow_metrics["gust_hover"]["hard_gate_passed"]:
+        raise RuntimeError("shadow gust trial failed the hover hard gate")
+    (output / "shadow.json").write_text(json.dumps({"correction": shadow_result,
+                                                      "metrics": shadow_metrics}, indent=2) + "\n",
+                                          encoding="utf-8")
     paired = []
     for seed in args.seeds:
         baseline, active = {}, {}

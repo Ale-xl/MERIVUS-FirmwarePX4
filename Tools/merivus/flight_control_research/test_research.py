@@ -7,6 +7,7 @@ import candidate
 import evaluate
 import research
 import run_sitl
+import shadow
 
 
 class CandidateTest(unittest.TestCase):
@@ -133,6 +134,22 @@ class ResearchTest(unittest.TestCase):
         self.assertEqual(record["review_status"], "METADATA_ONLY")
         self.assertEqual(record["doi"], "10.1234/example")
         self.assertNotIn("performance", record)
+
+
+class ShadowTest(unittest.TestCase):
+    def test_correction_is_logged_and_bounded(self):
+        name = b"AFCR_DA\0\0\0"
+        data = {"timestamp": [index * 20_000 for index in range(600)],
+                "x": [0.1] * 600, "y": [0.2] * 600, "z": [0.0] * 600}
+        for index, value in enumerate(name):
+            data[f"name[{index}]"] = [value] * 600
+        spec = json.loads(Path(__file__).with_name("candidate.json").read_text(encoding="utf-8"))
+        result = shadow.verify_samples(data, {"start_s": 0, "end_s": 15}, spec)
+        self.assertEqual(result["samples"], 600)
+        self.assertAlmostEqual(result["max_abs_m_s2"][1], 0.2)
+        data["y"][0] = 0.5
+        with self.assertRaisesRegex(ValueError, "exceeded"):
+            shadow.verify_samples(data, {"start_s": 0, "end_s": 15}, spec)
 
 
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ PX4 原位置环、姿态环、角速度环、EKF2、allocator 与 failsafe 保�
 ## 每轮实验合同
 
 1. AI 只修改 `Tools/merivus/flight_control_research/candidate.json`，由生成器生成 `ResearchCandidateSpec.hpp`。`cycle.py` 检查相对 HEAD 的更改路径；评价器、试验器与门限必须经单独审查。此路径检查是流程约束，不是恶意代码沙箱。
-2. Linux 运行 `python3 Tools/merivus/flight_control_research/cycle.py --output /absolute/results/round-001 --dialect /absolute/generated/pymavlink/dialect.py`。输出目录须不存在；脚本运行单测，先执行 `make px4_sitl_default -j4` 生成 MERIVUS MAVLink 头文件，再执行 `make px4_sitl_default sitl_gazebo-classic -j4`。每个种子分别运行原生 PX4 与候选 Active 的正常、固定风和较重载荷场景。MAVLink dialect 路径需提供适配本仓库的已生成 Python 文件。
+2. Linux 运行 `python3 Tools/merivus/flight_control_research/cycle.py --output /absolute/results/round-002 --dialect /absolute/generated/pymavlink/dialect.py --seeds 11 12`。输出目录须不存在；脚本运行单测，先执行 `make px4_sitl_default -j4` 生成 MERIVUS MAVLink 头文件，再执行 `make px4_sitl_default sitl_gazebo-classic -j4`。进入 Active 前先运行阵风 `shadow` 并检查 `AFCR_DA` 的有限值、样本数与限幅；每个种子随后运行原生 PX4 与候选 Active 的正常、固定风、阵风和较重载荷场景。MAVLink dialect 路径需提供适配本仓库的已生成 Python 文件。
 3. 每次独立 Gazebo 会话保存场景、种子、源码提交、世界或模型、日志和 ULog；评分读取仿真真值 `vehicle_local_position_groundtruth`、控制器位置设定点、allocator 状态、电机输出和实际飞行模式。真值、设定点或 allocator 数据缺失时拒绝评分；窗口中必须保持已解锁的 Position/Loiter。当前载荷是起飞前固定 1.8 kg，而非空中突加载荷；第二轮增加仿真第 46–51 秒的独立阵风事件。
 4. 原始真值相对设定点的 XY/Z 峰值与分配失败、飞行模式构成硬门；物理悬停位移以窗口前 2 秒真值为锚点评分。首轮采用原始 RMSE 的 5% 回退门槛，已被[实验记录](experiments/round-001/README.md)固化；第二轮执行[预注册协议](experiments/round-002/PROTOCOL.md)中的正常、受扰及阵风门槛。所有阈值均为 SITL 候选筛选条件，不能用作实机安全阈值。
 
