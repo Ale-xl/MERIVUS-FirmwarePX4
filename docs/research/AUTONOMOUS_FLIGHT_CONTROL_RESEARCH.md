@@ -1,6 +1,6 @@
 # MERIVUS 自主飞控算法研究系统：第一阶段
 
-状态：`SITL_VERIFIED_CANDIDATE_002_UNVERIFIED`。候选图生成、PX4 SITL 控制入口、仿真试验与 ULog 判定代码已在隔离的 Ubuntu 虚拟机完成构建及首轮 12 组闭环试验；首个有界残差候选未通过正常悬停回退门槛。[首轮实验记录](experiments/round-001/README.md)保存其指标和判定。[第二轮预注册协议](experiments/round-002/PROTOCOL.md)规定固定随机数种子、阵风事件和物理位移评分；[候选 002](experiments/round-002/CANDIDATE_002.md)尚无闭环性能结论。目标是正常执行器条件下的多旋翼定点悬停。此前针对定位源、动力链与原生参数的悬停审计仍是实机问题诊断依据；SITL 结果不能替代这些检查。
+状态：`SITL_VERIFIED_CANDIDATE_002_REJECTED`。候选图生成、PX4 SITL 控制入口、仿真试验与 ULog 判定代码已在隔离的 Ubuntu 虚拟机完成构建和闭环对照。[首轮实验记录](experiments/round-001/README.md)与[候选 002 发现集](experiments/round-002/RESULT.md)均未通过正常悬停回退门槛。[第二轮预注册协议](experiments/round-002/PROTOCOL.md)固定了随机数种子、阵风事件和物理位移评分。目标是正常执行器条件下的多旋翼定点悬停。此前针对定位源、动力链与原生参数的悬停审计仍是实机问题诊断依据；SITL 结果不能替代这些检查。
 
 ## 四个角色与边界
 

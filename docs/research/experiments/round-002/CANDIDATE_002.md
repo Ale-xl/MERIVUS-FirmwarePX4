@@ -1,6 +1,6 @@
 # 候选 002：带限残差与水平速度反馈耦合
 
-状态：`HYPOTHESIS_UNVERIFIED`。该结构由首轮失败日志提出，不声称新的控制定理或性能改进。代码由 [candidate.json](../../../../Tools/merivus/flight_control_research/candidate.json) 生成，只有 SITL 的 `active` 模式可将其加到 PX4 原速度环加速度设定点上。
+状态：`DISCOVERY_REJECTED`。该结构由首轮失败日志提出，不声称新的控制定理或性能改进。在提交 `8d2f839dcf8d6b29bbc714abe8862ee6e169f1e2` 下完成发现集，两种子的正常悬停 XY 位移均超过预注册回退门槛；原始指标见[结果记录](RESULT.md)。该提交中的代码由候选图生成，只有 SITL 的 `active` 模式可将其加到 PX4 原速度环加速度设定点上。
 
 令 `e_v` 为 PX4 速度环误差，`r = a_measured - u_previous` 为现有残差代理，`L_τ` 为一阶低通。水平补偿为
 
