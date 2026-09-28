@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "name": "gated_bandlimited_residual_velocity_003",
-  "description": "水平速度误差连续门控带限残差与速度反馈，在正常悬停误差范围内关断补偿，不修改 Z 轴。",
+  "name": "settled_hover_gated_residual_velocity_004",
+  "description": "稳态定点悬停启用后，水平速度误差连续门控带限残差与速度反馈；其他阶段关闭补偿，不修改 Z 轴。",
   "nodes": [
     {"id": "velocity_error", "op": "velocity_error"},
     {"id": "velocity_feedback", "op": "velocity_gain", "input": "velocity_error", "gain": [0.15, 0.15, 0.0]},

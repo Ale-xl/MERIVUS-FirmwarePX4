@@ -67,6 +67,7 @@
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
 #include <uORB/topics/debug_vect.h>
+#include <uORB/topics/vehicle_status.h>
 #endif
 
 using namespace time_literals;
@@ -91,6 +92,9 @@ public:
 
 private:
 	void Run() override;
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+	bool researchHoverReady(bool available, const PositionControlStates &states, hrt_abstime timestamp);
+#endif
 
 	TakeoffHandling _takeoff; /**< state machine and ramp to bring the vehicle off the ground without jumps */
 
@@ -103,6 +107,12 @@ private:
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
 	uORB::Publication<debug_vect_s> _research_correction_pub{ORB_ID(debug_vect)};
 	PositionControl::ResearchMode _research_mode{PositionControl::ResearchMode::Off};
+	uORB::Subscription _research_vehicle_status_sub{ORB_ID(vehicle_status)};
+	vehicle_status_s _research_vehicle_status{};
+	hrt_abstime _research_settled_since{0};
+	bool _research_hover_latched{false};
+	bool _research_anchor_valid{false};
+	float _research_hover_anchor[3]{};
 #endif
 
 	uORB::SubscriptionCallbackWorkItem _local_pos_sub{this, ORB_ID(vehicle_local_position)};	/**< vehicle local position */

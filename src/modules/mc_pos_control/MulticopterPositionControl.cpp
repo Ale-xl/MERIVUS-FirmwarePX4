@@ -78,6 +78,70 @@ MulticopterPositionControl::~MulticopterPositionControl()
 	perf_free(_cycle_perf);
 }
 
+#ifdef CONFIG_ARCH_BOARD_PX4_SITL
+bool MulticopterPositionControl::researchHoverReady(bool available, const PositionControlStates &states,
+		hrt_abstime timestamp)
+{
+	_research_vehicle_status_sub.update(&_research_vehicle_status);
+	const bool position_hold = _research_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_POSCTL
+			   || _research_vehicle_status.nav_state == vehicle_status_s::NAVIGATION_STATE_AUTO_LOITER;
+	const bool stationary_setpoint = (!PX4_ISFINITE(_setpoint.velocity[0]) || fabsf(_setpoint.velocity[0]) <= 0.1f)
+					 && (!PX4_ISFINITE(_setpoint.velocity[1]) || fabsf(_setpoint.velocity[1]) <= 0.1f)
+					 && (!PX4_ISFINITE(_setpoint.velocity[2]) || fabsf(_setpoint.velocity[2]) <= 0.1f);
+
+	if (!available || !position_hold || !stationary_setpoint || !states.position.isAllFinite()
+	    || !states.velocity.isAllFinite()) {
+		_research_settled_since = 0;
+		_research_hover_latched = false;
+		_research_anchor_valid = false;
+		return false;
+	}
+
+	if (_research_anchor_valid) {
+		const float dx = _setpoint.position[0] - _research_hover_anchor[0];
+		const float dy = _setpoint.position[1] - _research_hover_anchor[1];
+		const float dz = _setpoint.position[2] - _research_hover_anchor[2];
+
+		if (sqrtf(dx * dx + dy * dy + dz * dz) > 0.1f) {
+			_research_settled_since = 0;
+			_research_hover_latched = false;
+			_research_anchor_valid = false;
+			return false;
+		}
+	}
+
+	if (!_research_anchor_valid) {
+		for (unsigned axis = 0; axis < 3; ++axis) {
+			_research_hover_anchor[axis] = _setpoint.position[axis];
+		}
+
+		_research_anchor_valid = true;
+	}
+
+	if (!_research_hover_latched) {
+		const float dx = states.position(0) - _setpoint.position[0];
+		const float dy = states.position(1) - _setpoint.position[1];
+		const float vx = states.velocity(0);
+		const float vy = states.velocity(1);
+		const bool settled = sqrtf(dx * dx + dy * dy) <= 0.1f
+				     && fabsf(states.position(2) - _setpoint.position[2]) <= 0.15f
+				     && sqrtf(vx * vx + vy * vy) <= 0.1f && fabsf(states.velocity(2)) <= 0.1f;
+
+		if (!settled) {
+			_research_settled_since = 0;
+
+		} else if (_research_settled_since == 0 || timestamp < _research_settled_since) {
+			_research_settled_since = timestamp;
+
+		} else if (timestamp - _research_settled_since >= 2_s) {
+			_research_hover_latched = true;
+		}
+	}
+
+	return _research_hover_latched;
+}
+#endif
+
 bool MulticopterPositionControl::init()
 {
 	if (!_local_pos_sub.registerCallback()) {
@@ -555,10 +619,12 @@ void MulticopterPositionControl::Run()
 			_control.setState(states);
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
-			const bool research_hover = flying && !_vehicle_land_detected.ground_contact
+			const bool research_available = flying && !_vehicle_land_detected.ground_contact
 				&& actual_dt >= 0.002f && actual_dt <= 0.04f
 				&& PX4_ISFINITE(_setpoint.position[0]) && PX4_ISFINITE(_setpoint.position[1])
 				&& PX4_ISFINITE(_setpoint.position[2]);
+			const bool research_hover = researchHoverReady(research_available, states,
+								      vehicle_local_position.timestamp_sample);
 			_control.setResearchMode(research_hover ? _research_mode : PositionControl::ResearchMode::Off);
 #endif
 
