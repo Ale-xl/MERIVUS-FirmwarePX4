@@ -45,7 +45,8 @@ def score_boundary(ulog, event):
             continue
         if mode_expected is not None and int(status["nav_state"][status_index]) != mode_expected:
             continue
-        if mode_expected is None and stamp < start + 200_000:
+        grace_us = 500_000 if event["name"] in ("gps_loss", "failsafe", "ekf_restart") else 200_000
+        if mode_expected is None and stamp < start + grace_us:
             continue
         corrections.append([float(debug[axis][i]) for axis in "xyz"])
     if any(not math.isfinite(value) for vector in corrections for value in vector):
@@ -63,15 +64,32 @@ def score_boundary(ulog, event):
         reason = "zero correction with mode and diagnostic samples"
     gps_samples_after = None
     if event["name"] == "gps_loss":
-        gps = evaluate.dataset(log, "sensor_gps")
-        gps_samples_after = sum(int(stamp) >= start + 500_000 for stamp in gps["timestamp"])
-        if gps_samples_after > 0:
+        try:
+            gps = evaluate.dataset(log, "sensor_gps")
+            gps_samples_after = sum(int(stamp) >= start + 500_000 for stamp in gps["timestamp"])
+        except ValueError:
+            gps_samples_after = None
+        if gps_samples_after is None and classification == "PASS":
+            classification = "PARTIAL"
+            reason = "GPS data topic absent; dropout cannot be verified"
+        elif gps_samples_after and classification == "PASS":
             classification = "PARTIAL"
             reason = "GPS stream continued after fault injection"
+    failsafe_observed = None
+    if event["name"] == "failsafe":
+        failsafe_observed = any(bool(status["failsafe"][i]) for i, stamp in enumerate(status["timestamp"])
+                                if start <= int(stamp) < end)
+        if not failsafe_observed and classification == "PASS":
+            classification = "PARTIAL"
+            reason = "failsafe state not observed"
+    if event.get("command_rc", 0) != 0 and classification == "PASS":
+        classification = "PARTIAL"
+        reason = "boundary command failed"
     return {"classification": classification, "reason": reason,
             "correction_samples": len(corrections), "max_abs_correction_m_s2": peak,
             "nav_states_observed": sorted(set(modes)), "expected_nav_state": mode_expected,
             "gps_samples_after_injection": gps_samples_after,
+            "failsafe_observed": failsafe_observed,
             "command_rc": event.get("command_rc")}
 
 

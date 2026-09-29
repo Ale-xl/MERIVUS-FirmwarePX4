@@ -64,7 +64,8 @@ def classify(pair, extended, case):
     if active["allocation_failure_fraction"] > baseline["allocation_failure_fraction"] + 0.01:
         failed.append("分配器饱和比例增加超过 1 个百分点")
     if any(value > 0.3501 for value in ea["candidate_axis_max_m_s2"][:2]) or \
-            ea["candidate_axis_max_m_s2"][2] > 1e-4:
+            ea["candidate_axis_max_m_s2"][2] > 1e-4 or \
+            ea["candidate_max_correction_m_s2"] > 0.5001:
         failed.append("候选修正超过逐轴限制或 Z 非零")
     if case["disturbance"] == "wind" and ea["candidate_max_correction_m_s2"] > 1e-4:
         failed.append("固定风阶段候选非零")

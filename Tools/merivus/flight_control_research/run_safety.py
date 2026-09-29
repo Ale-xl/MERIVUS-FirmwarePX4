@@ -87,11 +87,14 @@ def run_boundary(repo, output, dialect, boundary, seed):
             elif boundary == "ekf_restart":
                 result = trial.cli("ekf2", "stop")
                 trial.wait_for(1)
-                trial.cli("ekf2", "start")
+                restarted = trial.cli("ekf2", "start")
+                result = SimpleNamespace(returncode=max(result.returncode, restarted.returncode),
+                                         stdout=result.stdout + restarted.stdout)
+            observation_s = 8 if boundary in ("failsafe", "gps_loss") else 5
             events.append({"name": boundary, "start_s": start,
-                           "end_s": start + 4, "command_rc": result.returncode,
+                           "end_s": start + observation_s, "command_rc": result.returncode,
                            "stdout": result.stdout.strip()})
-            trial.wait_for(5)
+            trial.wait_for(observation_s)
         if boundary == "landing":
             trial.wait_for(max(0, 48 - trial.sim_time))
             start = trial.sim_time
