@@ -69,6 +69,8 @@ class Trial:
         self.latest = {}
         self.sim_time = 0.0
         self.last_manual = 0.0
+        self.manual_x = 0
+        self.manual_enabled = True
         self.last_heartbeat = 0.0
         self.processes = []
         self.streams = []
@@ -186,8 +188,8 @@ class Trial:
         if now - self.last_heartbeat > 0.4:
             self.writer.heartbeat_send(6, 8, 0, 0, 4)
             self.last_heartbeat = now
-        if now - self.last_manual > 0.02:
-            self.writer.manual_control_send(1, 0, 0, 500, 0, 0)
+        if self.manual_enabled and now - self.last_manual > 0.02:
+            self.writer.manual_control_send(1, self.manual_x, 0, 500, 0, 0)
             self.last_manual = now
         while True:
             try:
