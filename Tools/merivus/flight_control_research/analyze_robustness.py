@@ -95,14 +95,17 @@ def score_trial(ulog, window):
                     settling = (stamp - event_end) / 1e6
                     break
     correction = []
+    full_correction_peak = 0.0
     for i, stamp in enumerate(debug["timestamp"]):
         stamp = int(stamp)
-        if not start <= stamp < end or debug_name(debug, i) != b"AFCR_DA":
+        if stamp >= end or debug_name(debug, i) != b"AFCR_DA":
             continue
         vector = [float(debug[axis][i]) for axis in "xyz"]
         if not all(math.isfinite(value) for value in vector):
             raise ValueError("nonfinite candidate correction")
-        correction.append((stamp, vector))
+        full_correction_peak = max(full_correction_peak, *(abs(value) for value in vector))
+        if stamp >= start:
+            correction.append((stamp, vector))
     if len(correction) < 0.6 * (end - start) / 20_000:
         raise ValueError("insufficient AFCR_DA samples")
     norms = [math.hypot(value[0], value[1]) for _, value in correction]
@@ -124,6 +127,7 @@ def score_trial(ulog, window):
         "actuator_output_max": max(motor_peak),
         "candidate_activation_fraction": sum(value > 1e-4 for value in norms) / len(norms),
         "candidate_max_correction_m_s2": max(norms),
+        "candidate_max_abs_before_window_end_m_s2": full_correction_peak,
         "candidate_axis_max_m_s2": [max(abs(vector[axis]) for _, vector in correction)
                                       for axis in range(3)],
         "candidate_limit_incidence": sum(abs(vector[0]) >= 0.349 or abs(vector[1]) >= 0.349

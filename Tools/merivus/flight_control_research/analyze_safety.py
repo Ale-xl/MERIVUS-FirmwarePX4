@@ -45,6 +45,8 @@ def score_boundary(ulog, event):
             continue
         if mode_expected is not None and int(status["nav_state"][status_index]) != mode_expected:
             continue
+        if event["name"] == "failsafe" and not bool(status["failsafe"][status_index]):
+            continue
         grace_us = 500_000 if event["name"] in ("gps_loss", "failsafe", "ekf_restart") else 200_000
         if mode_expected is None and stamp < start + grace_us:
             continue
@@ -69,20 +71,29 @@ def score_boundary(ulog, event):
             gps_samples_after = sum(int(stamp) >= start + 500_000 for stamp in gps["timestamp"])
         except ValueError:
             gps_samples_after = None
-        if gps_samples_after is None and classification == "PASS":
+        if gps_samples_after is None:
             classification = "PARTIAL"
             reason = "GPS data topic absent; dropout cannot be verified"
-        elif gps_samples_after and classification == "PASS":
+        elif gps_samples_after:
             classification = "PARTIAL"
             reason = "GPS stream continued after fault injection"
     failsafe_observed = None
     if event["name"] == "failsafe":
         failsafe_observed = any(bool(status["failsafe"][i]) for i, stamp in enumerate(status["timestamp"])
                                 if start <= int(stamp) < end)
-        if not failsafe_observed and classification == "PASS":
+        if not failsafe_observed:
             classification = "PARTIAL"
             reason = "failsafe state not observed"
-    if event.get("command_rc", 0) != 0 and classification == "PASS":
+    ekf_update_gap_s_max = None
+    if event["name"] == "ekf_restart":
+        estimate = evaluate.dataset(log, "vehicle_local_position")
+        stamps = [int(stamp) for stamp in estimate["timestamp"]
+                  if start - 1_000_000 <= int(stamp) < end]
+        ekf_update_gap_s_max = max(((b - a) / 1e6 for a, b in zip(stamps, stamps[1:])), default=0)
+        if ekf_update_gap_s_max < 0.3:
+            classification = "PARTIAL"
+            reason = "EKF output interruption not observed"
+    if event.get("command_rc", 0) != 0:
         classification = "PARTIAL"
         reason = "boundary command failed"
     return {"classification": classification, "reason": reason,
@@ -90,6 +101,7 @@ def score_boundary(ulog, event):
             "nav_states_observed": sorted(set(modes)), "expected_nav_state": mode_expected,
             "gps_samples_after_injection": gps_samples_after,
             "failsafe_observed": failsafe_observed,
+            "ekf_update_gap_s_max": ekf_update_gap_s_max,
             "command_rc": event.get("command_rc")}
 
 
@@ -100,7 +112,8 @@ def main():
     trials = json.loads((args.run / "results.json").read_text(encoding="utf-8"))
     findings = []
     for trial in trials:
-        item = {"boundary": trial["boundary"], "ulog": trial.get("ulog"), "events": []}
+        item = {"boundary": trial["boundary"], "ulog": trial.get("ulog"),
+                "raw_ulog_paths": trial.get("raw_ulog_paths", []), "events": []}
         if "ulog" not in trial:
             item.update(classification="PARTIAL", reason=trial.get("error", "no ULog"))
         else:

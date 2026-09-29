@@ -63,7 +63,7 @@ def run_boundary(repo, output, dialect, boundary, seed):
             trial.wait_for(3)
             result = trial.cli("commander", "mode", "posctl")
             events.append({"name": boundary, "start_s": trial.sim_time,
-                           "end_s": trial.sim_time + 3, "command_rc": result.returncode,
+                           "end_s": trial.sim_time + 2, "command_rc": result.returncode,
                            "stdout": result.stdout.strip()})
             trial.wait_for(7)
         elif boundary not in ("takeoff", "landing"):
@@ -134,7 +134,9 @@ def main():
         try:
             result = run_boundary(args.repo.resolve(), path, args.dialect.resolve(), boundary, 71 + index)
         except Exception as error:
-            result = {"boundary": boundary, "status": "ERROR", "error": str(error)}
+            result = {"boundary": boundary, "status": "ERROR", "error": str(error),
+                      "trial_output": str(path),
+                      "raw_ulog_paths": [str(log) for log in sorted((path / "rootfs/log").rglob("*.ulg"))]}
         results.append(result)
         save(args.output / "results.json", results)
     print(args.output / "results.json")

@@ -5,6 +5,7 @@ from pathlib import Path
 import unittest
 
 import candidate
+import classify_robustness
 import cycle
 import evaluate
 import research
@@ -61,6 +62,24 @@ def telemetry(error=0.1, saturated=False):
 
 
 class EvaluationTest(unittest.TestCase):
+    def test_candidate_hard_gate_failure_is_not_excused_by_baseline_failure(self):
+        metric = {"hard_gate_passed": False, "motor_effort_mean": 1.0,
+                  "allocation_failure_fraction": 0.0, "event_xy_rmse_m": 0.8}
+        pair = {"id": "w12_135_g2", "trials": {
+            mode: {"metrics": {"gust_hover": dict(metric)}, "ulog": mode + ".ulg"}
+            for mode in ("active", "off")}}
+        tail = {"xy_error_p95_m": 1.0, "xy_excursion_max_m": 2.1,
+                "post_event_overshoot_m": 1.0, "settling_time_s": None,
+                "candidate_activation_fraction": 0.2, "candidate_max_correction_m_s2": 0.4,
+                "candidate_max_abs_before_window_end_m_s2": 0.35,
+                "candidate_axis_max_m_s2": [0.35, 0.35, 0.0],
+                "candidate_limit_incidence": 0.0, "candidate_slope_p95_m_s3": 0.2}
+        extended = {"trials": {mode: dict(tail) for mode in ("active", "off")}}
+        case = {"disturbance": "gust", "magnitude_m_s": 12}
+        verdict = classify_robustness.classify(pair, extended, case)
+        self.assertEqual(verdict["classification"], "FAIL")
+        self.assertIn("候选安全硬门失败", verdict["reasons"])
+
     def test_trial_order_counterbalances_odd_and_even_seeds(self):
         self.assertEqual(cycle.mode_order_for_seed(11), ("active", "off"))
         self.assertEqual(cycle.mode_order_for_seed(12), ("off", "active"))

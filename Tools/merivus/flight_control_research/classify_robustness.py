@@ -32,6 +32,7 @@ def classify(pair, extended, case):
         "settling_time_delta_s": difference(ea, eb, "settling_time_s"),
         "candidate_activation_fraction": ea["candidate_activation_fraction"],
         "candidate_max_correction_m_s2": ea["candidate_max_correction_m_s2"],
+        "candidate_max_abs_before_window_end_m_s2": ea["candidate_max_abs_before_window_end_m_s2"],
         "candidate_axis_max_m_s2": ea["candidate_axis_max_m_s2"],
         "candidate_limit_incidence": ea["candidate_limit_incidence"],
         "allocator_saturation_active": active["allocation_failure_fraction"],
@@ -67,7 +68,7 @@ def classify(pair, extended, case):
             ea["candidate_axis_max_m_s2"][2] > 1e-4 or \
             ea["candidate_max_correction_m_s2"] > 0.5001:
         failed.append("候选修正超过逐轴限制或 Z 非零")
-    if case["disturbance"] == "wind" and ea["candidate_max_correction_m_s2"] > 1e-4:
+    if case["disturbance"] == "wind" and ea["candidate_max_abs_before_window_end_m_s2"] > 1e-4:
         failed.append("固定风阶段候选非零")
     if failed:
         item.update(classification="FAIL", reasons=failed)
