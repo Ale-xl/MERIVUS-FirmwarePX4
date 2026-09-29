@@ -38,12 +38,16 @@ def classify(pair, extended, case):
         "allocator_saturation_off": baseline["allocation_failure_fraction"],
         "candidate_slope_p95_m_s3": ea["candidate_slope_p95_m_s3"],
     }
-    if not baseline["hard_gate_passed"]:
-        item["reasons"].append("原生 PX4 超出预注册安全包线")
-        return item
     failed = []
     if not active["hard_gate_passed"]:
         failed.append("候选安全硬门失败")
+    if not baseline["hard_gate_passed"]:
+        item["observations"].append("原生 PX4 同样超出预注册安全包线")
+        if failed:
+            item.update(classification="FAIL", reasons=failed)
+        else:
+            item["reasons"].append("原生 PX4 超出预注册安全包线")
+        return item
     for key, maximum, description in (
         ("xy_error_p95_delta_m", 0.1, "XY 误差 95 分位退化"),
         ("xy_excursion_max_delta_m", 0.2, "最大位置漂移退化"),
