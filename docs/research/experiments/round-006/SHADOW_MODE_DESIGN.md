@@ -1,6 +1,6 @@
 # Candidate 006 实机只读 Shadow Mode 设计
 
-状态：`DESIGN_ONLY`。本轮未将 Candidate 006 编入 FMUv6C 固件，未刷写飞控，未连接 actuator 或 control setpoint。该设计的目标是以后采集实机 ULog、评估反事实修正；是否进入实机闭环须另行评审和授权。
+状态：`DESIGN_ONLY`。本轮未将 Candidate 006 编入 FMUv6C 固件，未刷写飞控，未连接 actuator 或 control setpoint。第六轮[安全边界试验](SAFETY_BOUNDARY_RESULT.md)已经发现 failsafe、GPS loss 后候选修正非零；当前主动候选不得用于实机。该设计的目标是以后采集只读 ULog、评估反事实修正；是否进入实机闭环须另行评审和授权。
 
 ## 接入位置与权限
 

@@ -34,8 +34,8 @@
 | FTC active allocation/recovery | L3 + L4 + L5 + L6 | L7 + L8 + L9 | `SKELETON` / 未实现，禁止实机启用 |
 | SITL FTC injection | L3 + L4 | 不适用实机 | `IMPLEMENTED_UNVERIFIED` |
 | ULog topic contract | L2 + L4 + L5 | 相关功能发布前完成 | 源码订阅存在，尚无实际 ULog |
-| 自主悬停控制候选（SITL 限定） | L1 + L2 + L4 + L5 | 实机需另行 L6 → L7 → L8 → L9 | `IMPLEMENTED_UNVERIFIED`；本轮仅 L0 + L1，未构建/飞行 |
+| 自主悬停控制候选（SITL 限定） | L1 + L2 + L4 + L5 | 实机需另行 L6 → L7 → L8 → L9 | Candidate 006 已执行 L1/L2/L4/L5；鲁棒性与安全边界 `FAIL`，禁止实机闭环 |
 
 ## 本轮验证边界
 
-先前文档收口轮没有改动程序行为；其 GitNexus 索引、Git/路径审计和 Markdown 检查不能作为本轮控制代码的 L2 或更高等级证据。本轮研究入口执行了 Python 候选/评分单测与静态检查；PX4 完整构建、SITL、HITL 和实机测试尚未执行。
+先前文档收口轮没有改动程序行为；其 GitNexus 索引、Git/路径审计和 Markdown 检查不能作为控制代码的 L2 或更高等级证据。Candidate 006 随后完成 Python 单测、Ubuntu PX4 SITL 构建和 Gazebo/ULog 验证；[第六轮鲁棒性结果](../research/experiments/round-006/ROBUSTNESS_RESULT.md)与[安全边界结果](../research/experiments/round-006/SAFETY_BOUNDARY_RESULT.md)记录了失败用例和证据路径。HITL、台架和实机测试未执行。

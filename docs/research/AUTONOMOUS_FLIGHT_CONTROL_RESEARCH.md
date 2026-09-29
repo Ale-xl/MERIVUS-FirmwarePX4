@@ -1,6 +1,6 @@
 # MERIVUS 自主飞控算法研究系统：第一阶段
 
-状态：`SITL_HELDOUT_PASSED_CANDIDATE_006`。候选 006 在 Ubuntu PX4 SITL、Gazebo Classic iris 的两个发现种子与三个一次性保留种子中，均通过阵风悬停位移和恢复门槛；原始证据见[发现集](experiments/round-005/DISCOVERY_RESULT.md)与[保留集](experiments/round-005/HELDOUT_RESULT.md)。此前候选 001–005 的失败和无效试验均保留。该结论只覆盖当前仿真机体、风场和种子；此前针对定位源、动力链与原生参数的悬停审计仍是实机诊断依据。
+状态：`CANDIDATE_006_ROBUSTNESS_FAIL`。候选 006 在 Ubuntu PX4 SITL、Gazebo Classic iris 的两个发现种子与三个一次性保留种子中，通过了原 8 m/s 阵风悬停位移和恢复门槛；原始证据见[发现集](experiments/round-005/DISCOVERY_RESULT.md)与[保留集](experiments/round-005/HELDOUT_RESULT.md)。后续冻结参数的[26 项鲁棒性矩阵](experiments/round-006/ROBUSTNESS_RESULT.md)在 12 m/s、135° 阵风中触发候选安全硬门，[安全边界回归](experiments/round-006/SAFETY_BOUNDARY_RESULT.md)还发现 failsafe 和 GPS loss 后的非零修正，因此总体为 `FAIL`。此前候选 001–005 的失败和无效试验均保留；针对定位源、动力链与原生参数的悬停审计仍是实机诊断依据。
 
 ## 四个角色与边界
 
@@ -34,6 +34,7 @@ PX4 原位置环、姿态环、角速度环、EKF2、allocator 与 failsafe 保�
 ## 下一阶段
 
 - 为 Researcher 建立 IEEE、TU Delft、ETH、PX4 等一手来源的可追溯证据库；逐项登记 INDI、L1 adaptive、H∞、DOB/ESO、滑模、MPC、自适应、容错、在线辨识、控制分配、残差学习的控制层级、假设、采样率与失效模式。
-- 在更多风谱、方向、载荷变化和定位噪声下扩展事件，增加恢复时间、超调、连续饱和、估计器创新/重置及控制周期/CPU 门限，再设新的独立保留集。
+- 先修复 failsafe 与 GPS loss 时研究入口未及时撤销的问题，补足 Position→Stabilized 期间的连续零诊断与 EKF reset 试验设施，再用独立种子重跑安全边界。Candidate 006 本轮冻结结果不得回写；后续若改变门控或算法，应有新的版本和预注册合同。
+- 扩展真实 GPS 数据链路与本地状态时延注入、风型交互、估计器创新/重置及控制周期/CPU 门限，再设新的独立保留集。
 - 调查 Gazebo HIL 初始经纬度偶发为零导致的真值投影参考错误，修复仿真发布源后重跑相关场景；继续保留原始异常 ULog 和质量门槛。
 - 实机阶段需另立机体、定位、台架与飞行批准合同。

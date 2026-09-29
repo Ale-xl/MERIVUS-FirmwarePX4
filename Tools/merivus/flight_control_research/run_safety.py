@@ -22,6 +22,25 @@ def save(path, data):
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def cli_while_pumping(trial, module, *args):
+    command = [str(trial.build / "bin" / ("px4-" + module)), *map(str, args)]
+    process = subprocess.Popen(command, cwd=trial.rootfs, env=trial.env,
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    deadline = time.monotonic() + 30
+    try:
+        while process.poll() is None:
+            trial.pump()
+            if time.monotonic() > deadline:
+                raise TimeoutError(f"PX4 command timed out: {module} {' '.join(args)}")
+            time.sleep(.01)
+        stdout, _ = process.communicate(timeout=2)
+        return SimpleNamespace(returncode=process.returncode, stdout=stdout)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.communicate(timeout=2)
+
+
 def run_boundary(repo, output, dialect, boundary, seed):
     case_path = output.parent / "case.json"
     save(case_path, {"disturbance": "gust", "magnitude_m_s": 8,
@@ -85,9 +104,9 @@ def run_boundary(repo, output, dialect, boundary, seed):
                 trial.writer.command_long_send(1, 1, 420, 0, 4, 1, 0, 0, 0, 0, 0)
                 result = SimpleNamespace(returncode=0, stdout="MAV_CMD_INJECT_FAILURE GPS OFF")
             elif boundary == "ekf_restart":
-                result = trial.cli("ekf2", "stop")
+                result = cli_while_pumping(trial, "ekf2", "stop")
                 trial.wait_for(1)
-                restarted = trial.cli("ekf2", "start")
+                restarted = cli_while_pumping(trial, "ekf2", "start")
                 result = SimpleNamespace(returncode=max(result.returncode, restarted.returncode),
                                          stdout=result.stdout + restarted.stdout)
             observation_s = 8 if boundary in ("failsafe", "gps_loss") else 5

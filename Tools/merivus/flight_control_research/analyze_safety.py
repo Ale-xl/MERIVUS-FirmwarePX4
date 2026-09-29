@@ -20,6 +20,8 @@ EXPECTED_MODE = {
     "landing": 18,
     "takeoff": 17,
 }
+PRECURSOR_REQUIRED = {"manual_stick", "position_to_altitude", "position_to_stabilized",
+                      "rtl", "failsafe", "gps_loss", "ekf_restart"}
 
 
 def name_at(data, index):
@@ -54,6 +56,10 @@ def score_boundary(ulog, event):
     if any(not math.isfinite(value) for vector in corrections for value in vector):
         return {"classification": "FAIL", "reason": "nonfinite correction"}
     peak = max((abs(value) for vector in corrections for value in vector), default=None)
+    precursor_peak = max((abs(float(debug[axis][i]))
+                          for i, stamp in enumerate(debug["timestamp"])
+                          if start - 2_000_000 <= int(stamp) < start
+                          and name_at(debug, i) == b"AFCR_DA" for axis in "xyz"), default=None)
     mode_observed = mode_expected is None or mode_expected in modes
     if peak is not None and peak > 1e-4:
         classification = "FAIL"
@@ -96,8 +102,13 @@ def score_boundary(ulog, event):
     if event.get("command_rc", 0) != 0:
         classification = "PARTIAL"
         reason = "boundary command failed"
+    if event["name"] in PRECURSOR_REQUIRED and (precursor_peak is None or precursor_peak <= 1e-4):
+        if classification == "PASS":
+            classification = "PARTIAL"
+            reason = "candidate was not active before the boundary"
     return {"classification": classification, "reason": reason,
             "correction_samples": len(corrections), "max_abs_correction_m_s2": peak,
+            "precursor_max_abs_correction_m_s2": precursor_peak,
             "nav_states_observed": sorted(set(modes)), "expected_nav_state": mode_expected,
             "gps_samples_after_injection": gps_samples_after,
             "failsafe_observed": failsafe_observed,
