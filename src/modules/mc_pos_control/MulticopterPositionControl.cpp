@@ -650,16 +650,16 @@ void MulticopterPositionControl::Run()
 			_local_pos_sp_pub.publish(local_pos_sp);
 
 #ifdef CONFIG_ARCH_BOARD_PX4_SITL
+			debug_vect_s candidate_correction{};
+			std::strncpy(candidate_correction.name, "AFCR_DA", sizeof(candidate_correction.name) - 1);
 			if (_control.researchCandidateValid()) {
-				debug_vect_s candidate_correction{};
-				std::strncpy(candidate_correction.name, "AFCR_DA", sizeof(candidate_correction.name) - 1);
 				const Vector3f correction = _control.researchCandidateCorrection();
 				candidate_correction.x = correction(0);
 				candidate_correction.y = correction(1);
 				candidate_correction.z = correction(2);
-				candidate_correction.timestamp = hrt_absolute_time();
-				_research_correction_pub.publish(candidate_correction);
 			}
+			candidate_correction.timestamp = hrt_absolute_time();
+			_research_correction_pub.publish(candidate_correction);
 #endif
 
 			// Publish attitude setpoint output

@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 from pathlib import Path
 import unittest
@@ -76,6 +77,33 @@ class EvaluationTest(unittest.TestCase):
         plugin = run_sitl.configure_wind_world(source, "wind", 2).find(".//plugin[@name='wind_plugin']")
         self.assertEqual(plugin.findtext("windVelocityMean"), "4.0")
         self.assertEqual(plugin.findtext("windDirectionMean"), "0 1 0")
+
+    def test_robustness_matrix_covers_frozen_axes(self):
+        root = Path(__file__).parent
+        matrix = json.loads((root / "robustness_matrix.json").read_text(encoding="utf-8"))
+        self.assertEqual(matrix["candidate_sha256"],
+                         hashlib.sha256((root / "candidate.json").read_bytes()).hexdigest())
+        cases = matrix["cases"]
+        self.assertEqual(len({case["id"] for case in cases}), len(cases))
+        self.assertEqual({case["magnitude_m_s"] for case in cases if case["disturbance"] == "gust"},
+                         {2, 4, 6, 8, 10, 12})
+        self.assertTrue({"1 0 0", "-1 0 0", "0 1 0", "0 -1 0",
+                         "0.70710678 0.70710678 0", "-0.70710678 0.70710678 0"}.issubset(
+                             {case["direction"] for case in cases}))
+        self.assertEqual({case["duration_s"] for case in cases if case["disturbance"] == "gust"},
+                         {0.5, 1, 2, 5})
+        self.assertEqual({case["disturbance"] for case in cases},
+                         {"gust", "wind", "periodic", "randomized_gust"})
+
+    def test_nondefault_wind_case_is_written_to_world(self):
+        source = (Path(__file__).parents[3] /
+                  "Tools/simulation/gazebo-classic/sitl_gazebo-classic/worlds/windy.world")
+        case = {"magnitude_m_s": 12, "direction": "-1 0 0", "duration_s": 0.5}
+        plugin = run_sitl.configure_wind_world(source, "gust", 8, case).find(
+            ".//plugin[@name='wind_plugin']")
+        self.assertEqual(plugin.findtext("windGustVelocityMean"), "12")
+        self.assertEqual(plugin.findtext("windGustDirectionMean"), "-1 0 0")
+        self.assertEqual(plugin.findtext("windGustDuration"), "0.5")
 
     def test_takeoff_gate_uses_relative_height_and_stationary_vertical_motion(self):
         class Position:
