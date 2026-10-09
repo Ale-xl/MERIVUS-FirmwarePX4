@@ -6,7 +6,7 @@
 
 ## FTC 参数
 
-42 个参数定义在 `src/modules/control_allocator/ftc_params.c`（3 个共享开关）、`src/modules/motor_health_monitor/motor_health_monitor_params.c`（34 个）和 `src/modules/simulation/simulator_mavlink/simulator_mavlink_params.c`（5 个）。共享开关放在控制分配器的参数扫描范围，使所有编入 `control_allocator` 的板型都生成其引用的参数；监控模块只在 FMUv6C 和 SITL 产品配置中启用。主要读取位置是对应模块头文件的 `DEFINE_PARAMETERS`。所有控制/检测/注入入口默认关闭。
+42 个参数定义在 `src/lib/parameters/ftc_shared_params.c`（5 个共享开关）、`src/modules/motor_health_monitor/motor_health_monitor_params.c`（32 个）和 `src/modules/simulation/simulator_mavlink/simulator_mavlink_params.c`（5 个）。共享开关纳入全局参数扫描，使编入 `control_allocator` 或 `mc_rate_control` 的板型都生成其引用的参数；监控模块只在 FMUv6C 和 SITL 产品配置中启用。主要读取位置是对应模块头文件的 `DEFINE_PARAMETERS`。所有控制/检测/注入入口默认关闭。
 
 | 参数 | 系统/作用 | 默认值 | 改变控制 | 实验 | 风险 |
 | --- | --- | ---: | --- | --- | --- |

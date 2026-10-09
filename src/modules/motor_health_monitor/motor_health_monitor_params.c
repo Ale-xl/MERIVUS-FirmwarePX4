@@ -273,24 +273,6 @@ PARAM_DEFINE_INT32(FTC_LOC_EN, 0);
 PARAM_DEFINE_FLOAT(FTC_LOC_THR, 0.70f);
 
 /**
- * Enable recovery state machine and candidate generation
- *
- * @boolean
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_REC_EN, 0);
-
-/**
- * Enable connection of recovery candidates to the flight-control pipeline
- *
- * Gated active control path. Default off; SITL/HITL/flight validation pending.
- *
- * @boolean
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_REC_ACT, 0);
-
-/**
  * Recovery maximum commanded body rate
  *
  * @unit rad/s

@@ -36,3 +36,21 @@ PARAM_DEFINE_INT32(FTC_CA_SHADOW, 0);
  * @group Fault Tolerant Control
  */
 PARAM_DEFINE_INT32(FTC_CA_EN, 0);
+
+/**
+ * Enable recovery state machine and candidate generation
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
+PARAM_DEFINE_INT32(FTC_REC_EN, 0);
+
+/**
+ * Enable connection of recovery candidates to the flight-control pipeline
+ *
+ * Gated active control path. Default off; SITL/HITL/flight validation pending.
+ *
+ * @boolean
+ * @group Fault Tolerant Control
+ */
+PARAM_DEFINE_INT32(FTC_REC_ACT, 0);
