@@ -19,7 +19,8 @@
 
 | 路径/接口 | 分类 | 依据与说明 |
 | --- | --- | --- |
-| `src/modules/ekf2`、`mc_att_control`、`mc_pos_control`、`commander`、`flight_mode_manager` | `PX4_UPSTREAM` | 产品冻结基线及本轮 FTC 工作未修改这些路径 |
+| `src/modules/ekf2`、`mc_att_control`、`commander`、`flight_mode_manager` | `PX4_UPSTREAM` | 产品冻结基线及 FTC 工作未修改这些路径 |
+| `src/modules/mc_pos_control` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` + `EXPERIMENTAL` | 保留原生位置/速度控制；SITL 编译条件下增加默认关闭的悬停研究候选入口，尚无闭环验证 |
 | `src/modules/mc_rate_control` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` | 原生 rate 控制器保留；FTC 在 setpoint 入口仲裁恢复候选，默认关闭实际接管 |
 | `src/modules/control_allocator` | `PX4_UPSTREAM` + `MERIVUS_MODIFIED_PX4` | 保留唯一原生 allocator；发布名义矩阵，并在有效性、解锁/着陆等门控下应用 FTC 分配策略，默认关闭实际接管 |
 | `src/modules/logger/logged_topics.cpp` | `MERIVUS_MODIFIED_PX4` | 记录 11 个 FTC topic，不改变 logger 架构 |

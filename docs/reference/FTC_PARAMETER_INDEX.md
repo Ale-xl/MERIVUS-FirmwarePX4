@@ -6,7 +6,7 @@
 
 ## FTC 参数
 
-39 个参数定义在 `src/modules/motor_health_monitor/motor_health_monitor_params.c`（34 个）和 `src/modules/simulation/simulator_mavlink/simulator_mavlink_params.c`（5 个）。主要读取位置是对应模块头文件的 `DEFINE_PARAMETERS`。所有控制/检测/注入入口默认关闭。
+42 个参数定义在 `src/lib/parameters/ftc_shared_params.c`（5 个共享开关）、`src/modules/motor_health_monitor/motor_health_monitor_params.c`（32 个）和 `src/modules/simulation/simulator_mavlink/simulator_mavlink_params.c`（5 个）。共享开关纳入全局参数扫描，使编入 `control_allocator` 或 `mc_rate_control` 的板型都生成其引用的参数；监控模块只在 FMUv6C 和 SITL 产品配置中启用。主要读取位置是对应模块头文件的 `DEFINE_PARAMETERS`。所有控制/检测/注入入口默认关闭。
 
 | 参数 | 系统/作用 | 默认值 | 改变控制 | 实验 | 风险 |
 | --- | --- | ---: | --- | --- | --- |
@@ -30,7 +30,7 @@
 | `FTC_FAULT_P` | 故障分类概率门限 | `0.65` | 否 | 是 | MEDIUM |
 | `FTC_FAULT_VIB` | 振动归一化门限 | `8.0` | 否 | 是 | MEDIUM |
 | `FTC_FAULT_EXT` | 外部扰动门限 | `0.70` | 否 | 是 | MEDIUM |
-| `FTC_CA_EN` | 保留的主动控制分配开关；当前无执行路径 | `0` | 当前否/未来可能 | 是 | HIGH |
+| `FTC_CA_EN` | 有门控的实验性主动控制分配开关 | `0` | 开启后可能 | 是 | HIGH |
 | `FTC_CA_ATT_MIN` | roll/pitch 最低权限 | `0.35` | 否 | 是 | MEDIUM |
 | `FTC_CA_YAW_MIN` | yaw 最低权限 | `0.20` | 否 | 是 | MEDIUM |
 | `FTC_CA_THR_MIN` | thrust 最低权限 | `0.25` | 否 | 是 | MEDIUM |
@@ -40,10 +40,13 @@
 | `FTC_LOC_EN` | 失控检测开关 | `0` | 否 | 是 | MEDIUM |
 | `FTC_LOC_THR` | LOC score 门限 | `0.70` | 否 | 是 | MEDIUM |
 | `FTC_REC_EN` | 恢复状态机与候选生成开关 | `0` | 否 | 是 | HIGH |
-| `FTC_REC_ACT` | 保留的恢复仲裁开关；当前故意不接管 | `0` | 当前否/未来可能 | 是 | HIGH |
+| `FTC_REC_ACT` | 有门控的实验性恢复仲裁开关 | `0` | 开启后可能 | 是 | HIGH |
 | `FTC_REC_RATE` | 候选最大角速度 | `2.0` | 否 | 是 | HIGH |
 | `FTC_REC_KD` | 候选角速度阻尼增益 | `0.8` | 否 | 是 | HIGH |
 | `FTC_REC_ALT` | 恢复最低高度 | `3.0` | 否 | 是 | HIGH |
+| `FTC_EST_DELAY` | 指令到角响应的时间对齐 | `0.04` | 否 | 是 | MEDIUM |
+| `FTC_EST_AGE` | 效能参数更新最大年龄 | `10.0` | 否 | 是 | MEDIUM |
+| `FTC_THR_MAX` | 仅供质量观测的标定总推力 | `0` | 否 | 是 | MEDIUM |
 | `FTC_SIM_EN` | SITL 故障注入总开关 | `0` | 仅仿真 | 是 | HIGH |
 | `FTC_SIM_MOT` | 注入电机索引 | `1` | 仅仿真 | 是 | HIGH |
 | `FTC_SIM_EFF` | 目标电机效能 | `1.0` | 仅仿真 | 是 | HIGH |

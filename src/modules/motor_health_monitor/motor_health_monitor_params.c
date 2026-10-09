@@ -5,18 +5,6 @@
  ****************************************************************************/
 
 /**
- * Enable the fault-tolerant motor health monitor
- *
- * The module only observes and publishes diagnostics. It does not alter
- * actuator commands or controller setpoints.
- *
- * @boolean
- * @reboot_required true
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_MON_EN, 0);
-
-/**
  * Minimum mean motor command used for estimation
  *
  * @unit norm
@@ -123,17 +111,6 @@ PARAM_DEFINE_FLOAT(FTC_CONF_MIN, 0.60f);
 PARAM_DEFINE_FLOAT(FTC_FAIL_T, 1.0f);
 
 /**
- * Enable adaptive allocation shadow calculation
- *
- * Shadow mode publishes a candidate output for logging only and never writes
- * to the actuator pipeline.
- *
- * @boolean
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_CA_SHADOW, 0);
-
-/**
  * Estimator forgetting factor
  *
  * @min 0.90
@@ -218,16 +195,6 @@ PARAM_DEFINE_FLOAT(FTC_FAULT_VIB, 8.0f);
 PARAM_DEFINE_FLOAT(FTC_FAULT_EXT, 0.70f);
 
 /**
- * Enable experimental adaptive control allocation
- *
- * Gated active control path. Default off; SITL/HITL/flight validation pending.
- *
- * @boolean
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_CA_EN, 0);
-
-/**
  * Minimum normalized attitude authority
  *
  * @min 0.05
@@ -304,24 +271,6 @@ PARAM_DEFINE_INT32(FTC_LOC_EN, 0);
  * @group Fault Tolerant Control
  */
 PARAM_DEFINE_FLOAT(FTC_LOC_THR, 0.70f);
-
-/**
- * Enable recovery state machine and candidate generation
- *
- * @boolean
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_REC_EN, 0);
-
-/**
- * Enable connection of recovery candidates to the flight-control pipeline
- *
- * Gated active control path. Default off; SITL/HITL/flight validation pending.
- *
- * @boolean
- * @group Fault Tolerant Control
- */
-PARAM_DEFINE_INT32(FTC_REC_ACT, 0);
 
 /**
  * Recovery maximum commanded body rate

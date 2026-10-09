@@ -34,6 +34,8 @@
 
 ## 消息变更检查
 
+`ftc_recovery_status.fallback_reason` 的语义位 `1u << 4`（16）表示恢复中垂直状态重置计数变化或位置时间倒退，候选终止且 rate 仲裁硬退出。未修改该 topic 布局或 MAVLink 布局；它不是 `ftc_arbitration_status.fallback_reason` 的位定义。当前源码状态见[实施记录](../development/FLIGHT_RELIABILITY_IMPLEMENTATION.md)。
+
 修改上述消息前至少检查：
 
 1. `msg/CMakeLists.txt` 与生成结果；

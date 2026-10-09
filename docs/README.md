@@ -11,6 +11,10 @@
 - [关键调用链](architecture/CALL_CHAINS.md)
 - [硬件—软件对应关系](hardware/HARDWARE_SOFTWARE_MAP.md)
 
+## 悬停控制研究
+
+- [自主飞控算法研究系统](research/AUTONOMOUS_FLIGHT_CONTROL_RESEARCH.md)
+
 ## FTC
 
 - [FTC 文档入口](extreme_control/README.md)
@@ -38,6 +42,8 @@
 ## 开发与测试
 
 - [构建与刷写](development/BUILD_AND_FLASH.md)
+- [飞行可靠性实施与验收边界](development/FLIGHT_RELIABILITY_IMPLEMENTATION.md)
+- [GNSS 速度维度与精度契约](reference/GNSS_VELOCITY_CONTRACT.md)
 - [修改影响分析](development/CHANGE_IMPACT_GUIDE.md)
 - [后续重构候选](development/REFACTOR_CANDIDATES.md)
 - [L0–L9 测试矩阵](testing/TEST_MATRIX.md)

@@ -107,6 +107,9 @@ void FtcRecovery::Run()
 		&& PX4_ISFINITE(position.z) && PX4_ISFINITE(position.vz);
 	input.position_valid = input.vertical_valid && position.xy_valid;
 	input.z = position.z; input.vz = position.vz;
+	input.position_timestamp = position.timestamp;
+	input.z_reset_counter = position.z_reset_counter;
+	input.vz_reset_counter = position.vz_reset_counter;
 	input.hover_thrust = _param_mpc_thr_hover.get();
 	memcpy(input.q, attitude.q, sizeof(input.q));
 	memcpy(input.rates, velocity.xyz, sizeof(input.rates));
@@ -131,9 +134,10 @@ void FtcRecovery::Run()
 	if (!input.controllable) { status.inhibit_reason_mask |= INHIBIT_AUTHORITY; }
 	if (!input.mode_allowed || vehicle.vehicle_type != vehicle_status_s::VEHICLE_TYPE_ROTARY_WING) { status.inhibit_reason_mask |= INHIBIT_VEHICLE_TYPE; }
 	const auto previous_state = _controller.output().state;
-	const bool entry = previous_state == FtcRecoveryController::MONITORING || previous_state == FtcRecoveryController::DISABLED;
-	const float altitude = position.dist_bottom_valid ? position.dist_bottom : (position.z_valid ? -position.z : 0.f);
-	if (entry && (!fresh(position.timestamp, 200_ms) || altitude < _param_ftc_rec_alt.get())) { status.inhibit_reason_mask |= INHIBIT_LOW_ALTITUDE; }
+	if (!FtcRecoveryController::entryAltitudeAllowed(previous_state, fresh(position.timestamp, 200_ms),
+			position.dist_bottom_valid, position.dist_bottom, position.z_valid, position.z, _param_ftc_rec_alt.get())) {
+		status.inhibit_reason_mask |= INHIBIT_LOW_ALTITUDE;
+	}
 	input.eligible = status.inhibit_reason_mask == 0 && !input.failsafe;
 	const float dt = _last_run ? math::constrain((now - _last_run) * 1e-6f, 0.001f, 0.1f) : 0.02f;
 	_last_run = now;
