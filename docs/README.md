@@ -42,6 +42,8 @@
 ## 开发与测试
 
 - [构建与刷写](development/BUILD_AND_FLASH.md)
+- [飞行可靠性实施与验收边界](development/FLIGHT_RELIABILITY_IMPLEMENTATION.md)
+- [GNSS 速度维度与精度契约](reference/GNSS_VELOCITY_CONTRACT.md)
 - [修改影响分析](development/CHANGE_IMPACT_GUIDE.md)
 - [后续重构候选](development/REFACTOR_CANDIDATES.md)
 - [L0–L9 测试矩阵](testing/TEST_MATRIX.md)

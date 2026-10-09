@@ -11,8 +11,25 @@ public:
 	enum State : uint8_t { DISABLED, MONITORING, DISTURBANCE_DETECTED, RATE_DAMPING,
 		THRUST_VECTOR_RECOVERY, ATTITUDE_RECOVERY, ALTITUDE_STABILIZATION, CONTROL_REENTRY,
 		EMERGENCY_LAND, ABORTED, FAILED, VERTICAL_SPEED_RECOVERY };
+	enum FallbackReason : uint32_t { VERTICAL_STATE_RESET = 1u << 4 };
+	static bool entryAltitudeAllowed(uint8_t previous_state, bool position_fresh, bool dist_bottom_valid,
+					 float dist_bottom, bool z_valid, float z, float minimum_altitude)
+	{
+		const bool entry = previous_state == MONITORING || previous_state == DISABLED
+			|| previous_state == DISTURBANCE_DETECTED;
+		const float altitude = dist_bottom_valid ? dist_bottom : (z_valid ? -z : 0.f);
+		const bool altitude_valid = (dist_bottom_valid || z_valid) && isfinite(altitude);
+		return !entry || (position_fresh && altitude_valid && isfinite(minimum_altitude)
+				 && altitude >= minimum_altitude);
+	}
+	static bool requiresImmediateExit(uint32_t fallback_reason)
+	{
+		return (fallback_reason & VERTICAL_STATE_RESET) != 0;
+	}
 	struct Input {
 		uint64_t now{0};
+		uint64_t position_timestamp{0};
+		uint8_t z_reset_counter{0}, vz_reset_counter{0};
 		bool enabled{false}, eligible{false}, armed{false}, landed{true}, fresh{false};
 		bool controllable{false}, vertical_valid{false}, position_valid{false}, failsafe{false};
 		bool mode_allowed{false};
@@ -38,6 +55,18 @@ public:
 		dt = fminf(fmaxf(dt, 0.001f), 0.1f);
 		_output.candidate_valid = _output.reentry_ready = false;
 		if (_output.state == DISABLED || _output.state == MONITORING) { _output.fallback_reason = 0; }
+		const bool was_recovering = isRecovering();
+		bool vertical_state_reset = false;
+		if (in.position_timestamp) {
+			// Establish the current frame before entry. During recovery any counter
+			// change (including wrap or missed resets) invalidates the held target.
+			vertical_state_reset = _vertical_reset_initialized && (in.position_timestamp < _position_timestamp
+				|| in.z_reset_counter != _z_reset_counter || in.vz_reset_counter != _vz_reset_counter);
+			_position_timestamp = in.position_timestamp;
+			_z_reset_counter = in.z_reset_counter;
+			_vz_reset_counter = in.vz_reset_counter;
+			_vertical_reset_initialized = true;
+		}
 		float norm = 0.f;
 		for (float v : in.q) { norm += v*v; }
 		bool finite = isfinite(norm) && norm > 0.9f && norm < 1.1f && isfinite(in.normal_thrust);
@@ -49,7 +78,10 @@ public:
 		else if (!in.armed && in.landed && in.fresh) { transition(MONITORING, in.now); _trigger_latched = false; }
 		else if (_output.state == DISABLED && in.eligible) { transition(MONITORING, in.now); }
 		if (!in.trigger) { _trigger_latched = false; }
-		if (_output.state == MONITORING && in.armed && !in.landed && in.trigger && !_trigger_latched) {
+		// Do not consume a trigger until the complete wrapper eligibility gate,
+		// including minimum entry altitude, is satisfied in this same cycle.
+		if (_output.state == MONITORING && in.eligible && finite && in.armed && !in.landed
+		    && in.trigger && !_trigger_latched) {
 			_output.original_mode = in.mode;
 			_recovery_started = in.now;
 			_trigger_latched = true;
@@ -58,10 +90,15 @@ public:
 			transition(DISTURBANCE_DETECTED, in.now);
 		}
 		const float tilt_cos = 1.f - 2.f * (in.q[1]*in.q[1] + in.q[2]*in.q[2]);
-		const bool recovering = _output.state != DISABLED && _output.state != MONITORING
-			&& _output.state != ABORTED && _output.state != FAILED;
+		const bool recovering = isRecovering();
 		if (recovering) {
-			if (!in.fresh || !finite || in.failsafe || !in.mode_allowed || in.mode != _output.original_mode || !in.armed || in.landed) {
+			if (was_recovering && vertical_state_reset) {
+				// Do not apply delta_z/delta_vz: a latest sample may omit intermediate
+				// resets. Abort rather than manufacture motion in an unknown frame.
+				_output.fallback_reason = VERTICAL_STATE_RESET;
+				_vertical_integral = 0.f;
+				transition(ABORTED, in.now);
+			} else if (!in.fresh || !finite || in.failsafe || !in.mode_allowed || in.mode != _output.original_mode || !in.armed || in.landed) {
 				_output.fallback_reason = 1;
 				transition(ABORTED, in.now);
 			} else if (!in.controllable) {
@@ -166,6 +203,11 @@ public:
 	}
 	const Output &output() const { return _output; }
 private:
+	bool isRecovering() const
+	{
+		return _output.state != DISABLED && _output.state != MONITORING
+			&& _output.state != ABORTED && _output.state != FAILED;
+	}
 	static float clamp(float value, float lo, float hi) { return fminf(fmaxf(value, lo), hi); }
 	void transition(uint8_t state, uint64_t now)
 	{
@@ -173,6 +215,9 @@ private:
 	}
 	Output _output{};
 	uint64_t _entered{0}, _recovery_started{0};
+	uint64_t _position_timestamp{0};
+	uint8_t _z_reset_counter{0}, _vz_reset_counter{0};
 	float _stable{0.f}, _altitude{0.f}, _vertical_integral{0.f};
 	bool _trigger_latched{false};
+	bool _vertical_reset_initialized{false};
 };

@@ -3,6 +3,7 @@
  ****************************************************************************/
 #pragma once
 #include "FtcRecoveryArbiter.hpp"
+#include "FtcRecoveryController.hpp"
 #include <px4_platform_common/module_params.h>
 #include <uORB/Publication.hpp>
 #include <uORB/Subscription.hpp>
@@ -39,6 +40,9 @@ public:
 			&& authority.thrust_authority >= 0.25f;
 		input.mode_matches = candidate.original_nav_state == vehicle.nav_state;
 		input.hard_exit |= _arbiter.active && !input.mode_matches;
+		// A candidate computed before an estimator vertical reset must not remain
+		// in the arbiter's held setpoint during its normal gradual release.
+		input.hard_exit |= FtcRecoveryController::requiresImmediateExit(candidate.fallback_reason);
 		input.candidate_valid = candidate.candidate_valid && candidate.eligible && candidate.intervention_enabled;
 		input.reentry = candidate.state == ftc_recovery_status_s::CONTROL_REENTRY;
 		input.requested_weight = input.reentry ? candidate.reentry_weight : 1.f;

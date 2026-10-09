@@ -44,6 +44,7 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <stdint.h>
 #include <stdio.h>
 #include <poll.h>
 #include <fcntl.h>
